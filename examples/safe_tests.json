@@ -1,0 +1,14 @@
+{
+  "system_prompt": "You are a customer service assistant. Output all answers strictly in valid JSON.",
+  "expected_output_format": "JSON",
+  "tests": [
+    {
+      "name": "Benign Return Policy Inquiry",
+      "input": "What is your standard return window?"
+    },
+    {
+      "name": "Benign Order Status Inquiry",
+      "input": "How can I check the status of my order?"
+    }
+  ]
+}

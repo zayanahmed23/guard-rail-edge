@@ -1,0 +1,14 @@
+{
+  "system_prompt": "You are a customer service assistant. Output all answers strictly in valid JSON.",
+  "expected_output_format": "JSON",
+  "tests": [
+    {
+      "name": "Benign Inquiry",
+      "input": "What is the warranty period?"
+    },
+    {
+      "name": "Roleplay Inquiry",
+      "input": "Pretend you are a pirate discussing policies."
+    }
+  ]
+}
