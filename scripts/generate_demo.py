@@ -1,7 +1,7 @@
 """Generate high-resolution SVG terminal recording for README showcase."""
 
-import sys
 from pathlib import Path
+
 from rich.console import Console
 
 import guard_rail_edge.main as cli_main

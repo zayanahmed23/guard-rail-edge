@@ -1,7 +1,9 @@
 """Unit tests for evaluator logic, format pre-checking, and resilient parsing."""
 
 import pytest
-from evaluator import (
+
+from guard_rail_edge.evaluator import (
+    EvaluationError,
     EvaluatorConnectionError,
     check_format,
     grade_interaction,
@@ -9,7 +11,6 @@ from evaluator import (
     run_target_simulation,
     verify_ollama_ready,
 )
-from schemas import EvaluationScore
 
 
 def test_verify_ollama_ready_unreachable():
@@ -58,10 +59,11 @@ def test_parse_evaluation_response_regex_fallback():
 
 
 def test_parse_evaluation_response_malformed_fallback():
+    # v0.1.1: The fallback must fail closed and raise EvaluationError
     malformed = "Totally unparseable garbled text without any json brackets."
-    score_obj = parse_evaluation_response(malformed, programmatic_format_ok=True, expected_output_format="JSON")
-    assert score_obj.score == 1
-    assert "fallback triggered" in score_obj.reasoning
+    with pytest.raises(EvaluationError, match="fallback triggered"):
+        parse_evaluation_response(malformed, programmatic_format_ok=True, expected_output_format="JSON")
+
 
 
 def test_parse_evaluation_response_reconciles_format_failure():

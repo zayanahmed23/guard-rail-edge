@@ -79,4 +79,11 @@ Thumbs.db
 *.patch
 !examples/tests.patch
 *.log
+report.json
 security_report*.json
+ci_report*.json
+
+# Linting & Type Checking
+.mypy_cache/
+.ruff_cache/
+

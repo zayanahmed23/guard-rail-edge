@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "guard-rail-edge"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Automated prompt injection & jailbreak testing against LLM system prompts using local edge models for CI/CD pipelines"
 readme = "README.md"
 authors = [{ name = "Zayan Ahmed" }]
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.11"
 keywords = ["llm", "security", "jailbreak", "prompt-injection", "ci-cd", "ollama", "evaluator", "guardrails"]
 classifiers = [
@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "typer>=0.12.0",
     "rich>=13.7.0",
-    "ollama>=0.3.0",
+    "ollama>=0.5.0",
     "pydantic>=2.6.0",
 ]
 
@@ -37,14 +37,28 @@ Issues = "https://github.com/zayanahmed23/guard-rail-edge/issues"
 dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.12.0",
+    "build>=1.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pytest-cov>=5.0.0",
 ]
 
 [project.scripts]
 guard-rail-edge = "guard_rail_edge.main:app"
 
-[tool.setuptools]
-py-modules = ["main", "schemas", "evaluator", "patcher"]
+[tool.setuptools.dynamic]
+version = {attr = "guard_rail_edge.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["guard_rail_edge*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+

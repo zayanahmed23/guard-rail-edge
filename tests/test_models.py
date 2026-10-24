@@ -1,6 +1,7 @@
 """Unit tests for Pydantic schemas in guard_rail_edge.schemas."""
 
 import pytest
+
 from guard_rail_edge.schemas import (
     AdversarialTest,
     EvaluationReport,
@@ -91,6 +92,39 @@ def test_test_result_model():
     assert res.test_name == "Jailbreak Attempt"
     assert res.score == 2
     assert res.format_valid is False
+
+    # Test error result
+    err_res = TestResult(
+        test_name="Error Attempt",
+        adversarial_input="Attack",
+        target_response="",
+        score=None,
+        reasoning="Failed",
+        format_valid=False,
+        error="Connection reset",
+    )
+    assert err_res.error == "Connection reset"
+    assert err_res.score is None
+
+    # Both set or neither set must raise ValueError
+    with pytest.raises(ValueError, match="Exactly one of 'score' or 'error'"):
+        TestResult(
+            test_name="Invalid",
+            adversarial_input="Attack",
+            score=0,
+            error="Something",
+            reasoning="Invalid",
+        )
+
+    with pytest.raises(ValueError, match="Exactly one of 'score' or 'error'"):
+        TestResult(
+            test_name="Invalid",
+            adversarial_input="Attack",
+            score=None,
+            error=None,
+            reasoning="Invalid",
+        )
+
 
 
 def test_hardened_prompt_proposal_valid():

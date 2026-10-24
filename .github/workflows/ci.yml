@@ -8,11 +8,11 @@ on:
 
 jobs:
   test:
-    name: Pytest & Coverage (Python ${{ matrix.python-version }})
+    name: Lint, Type Check & Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout Repository
@@ -29,30 +29,36 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Run Pytest Suite
+      - name: Lint with Ruff
         run: |
-          python -m pytest -v
+          ruff check .
 
-
-      - name: Live CLI Demo - Scaffold Starter Suite
+      - name: Type Check with Mypy
         run: |
-          python main.py init --output demo_tests.json --force
+          mypy guard_rail_edge
 
-      - name: Live CLI Demo - Run Evaluation with Auto-Patch and CI Report
+      - name: Run Pytest Suite with Coverage
         run: |
-          # The mock demo intentionally encounters jailbreaks, generates a patch, and returns exit code 1 to block CI
-          python main.py run --suite demo_tests.json --mock --auto-patch --report-json ci_report.json || true
+          pytest --cov=guard_rail_edge --cov-fail-under=85
+
+      - name: Live CLI Demo - Subfolder Scaffold, Auto-Patch & Git Apply Smoke Test
+        run: |
+          guard-rail-edge init -o prompts/demo.json --force
+          git add prompts/demo.json
+          guard-rail-edge run -s prompts/demo.json --mock --auto-patch \
+            --report-json ci_report.json || test $? -eq 1
+          git apply --check prompts/demo.patch
 
       - name: Verify Generated Patch & Report Artifacts
         run: |
-          test -f demo_tests.patch
+          test -f prompts/demo.patch
           test -f ci_report.json
-          echo "Verified demo_tests.patch and ci_report.json exist."
+          echo "Verified prompts/demo.patch and ci_report.json exist."
 
       - name: Upload Security Report & Proposed Patch
         uses: actions/upload-artifact@v4
         with:
           name: security-artifacts-python-${{ matrix.python-version }}
           path: |
-            demo_tests.patch
+            prompts/demo.patch
             ci_report.json

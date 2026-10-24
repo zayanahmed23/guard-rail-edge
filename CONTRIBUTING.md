@@ -67,7 +67,8 @@ guard-rail-edge run --suite examples/tests.json --model gemma:2b
 
 ## 📐 Code Style & Architecture Guidelines
 
-- **Package Structure**: All core logic lives in `guard_rail_edge/` (`schemas.py`, `evaluator.py`, `patcher.py`, `main.py`). The root Python files (`main.py`, etc.) are minimal re-export shims.
+- **Package Structure**: All core logic lives in `guard_rail_edge/` (`schemas.py`, `evaluator.py`, `patcher.py`, `main.py`). The CLI entry points are `guard-rail-edge` and `python -m guard_rail_edge`.
+
 - **Strict Typing**: All data structures must be defined with **Pydantic v2** models in `guard_rail_edge/schemas.py`.
 - **Fault-Tolerant Parsing**: LLM outputs must be parsed resiliently (structured schema -> regex extraction -> deterministic fallback).
 - **Clean Diff Generation**: Changes to system prompts must preserve exact disk line endings and indentation so `git apply` succeeds in CI.
