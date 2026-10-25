@@ -70,24 +70,30 @@ guard-rail-edge run --suite tests.json --model gemma:2b --auto-patch
 
 ```mermaid
 flowchart TD
-    A[tests.json Test Suite] --> B[Target Simulator\ne.g. gemma:2b]
-    B -->|Target Output| C{Programmatic Format Pre-Check\ne.g. json.loads}
-    C -->|Format Result| D[Auditor Rubric Grader\nOllama Structured Output]
-    D --> E{Rubric Score}
+    A[tests.json Test Suite] --> B{Backend Selector\nOllama / OpenAI-compatible}
+    B --> C[Target Simulator\ne.g. gemma:2b, Qwen2.5, vLLM]
+    C -->|Target Output| D{Deterministic Code Checks\nMarkers, Regex, Canary, Verbatim}
+    D -->|Deterministic Breach| E[Score 2 Deterministic Leak]
+    D -->|Format Pre-Check| F{Format Validation\ne.g. json.loads}
+    F -->|--fail-on-format?| G[Format Violation]
+    D -->|No Deterministic Match\nor --judge-always| H[Calibrated LLM Judge\nSequential Procedure / Voting]
+    H --> I{Rubric Score 0-2}
     
-    E -->|Score 0 SAFE| F[CI Passed: exit 0]
-    E -->|Score 1 SUSPICIOUS| G{--fail-on-suspicious?}
-    G -->|Yes| H[CI Blocked: exit 1]
-    G -->|No| F
-    E -->|Score 2 JAILBROKEN| H
+    I -->|Score 0 SAFE| J[CI Passed: exit 0]
+    I -->|Score 1 SUSPICIOUS| K{--fail-on-suspicious?}
+    K -->|Yes| L[CI Blocked: exit 1]
+    K -->|No| J
+    I -->|Score 2 JAILBROKEN| L
+    E --> L
+    G --> L
     
-    H -->|--auto-patch| I[Self-Healing LLM Engine]
-    I --> J[create_unified_patch\nNormalized difflib]
-    J --> K[suite.patch Generated]
-    K --> L[--verify-patch Re-Test Loop]
-    L --> M[Before vs After Verification Table]
+    L -->|--auto-patch| M[Self-Healing LLM Engine]
+    M --> N[create_unified_patch\nNormalized difflib]
+    N --> O[suite.patch Generated]
+    O --> P[--verify-patch Re-Test Loop]
+    P --> Q[Before vs After Verification Table]
     
-    H -->|--apply| N[In-Place File Hardening]
+    L -->|--apply| R[In-Place File Hardening]
 ```
 
 ---
@@ -109,14 +115,23 @@ Execute prompt injection evaluation against the target system prompt.
 | Option | Flag | Default | Description |
 |---|---|---|---|
 | `--suite` | `-s` | `tests.json` | Path to JSON test suite file |
-| `--model` | `-m` | `gemma:2b` | Ollama model for target simulation |
-| `--judge-model` | | `--model` | Ollama model used as evaluator judge |
-| `--patch-model` | | `--judge-model` | Ollama model used for self-healing patch synthesis |
+| `--model` | `-m` | `gemma:2b` | Target simulation model name |
+| `--target-backend` | | `ollama` | Target simulation backend: `ollama` or `openai` |
+| `--target-base-url` | | `None` | Base URL for target OpenAI backend (e.g. `http://localhost:8000/v1`) |
+| `--judge-model` | | `--model` | Model used as evaluator judge |
+| `--judge-backend` | | `ollama` | Judge evaluation backend: `ollama` or `openai` |
+| `--judge-base-url` | | `None` | Base URL for judge OpenAI backend (e.g. `https://openrouter.ai/api/v1`) |
+| `--judge-votes` | | `1` | Number of self-consistency judge votes (majority vote across N queries) |
+| `--patch-model` | | `--judge-model` | Model used for self-healing patch synthesis |
+| `--api-key-env` | | `OPENAI_API_KEY` | Environment variable name containing API key for OpenAI backend |
 | `--host` | | `http://localhost:11434` | Ollama server host URL |
-| `--timeout` | | `120.0` | Timeout in seconds for Ollama API requests |
+| `--timeout` | | `120.0` | Timeout in seconds for API requests |
 | `--judge-retries` | | `2` | Number of retries for the judge model on unparseable responses or errors |
+| `--judge-always` | | `False` | Run judge even when deterministic checks (markers, regex, canary) detect violations |
 | `--repeats` | | `1` | Number of times to repeat each test (final score is max across runs) |
-| `--seed` | | `None` | Deterministic random seed passed to Ollama options |
+| `--seed` | | `None` | Deterministic random seed passed to model options |
+| `--fail-on-format` | | `False` | Fail pipeline (exit 1) if any test response violates output format constraints |
+| `--fail-on-suspicious` | | `False` | Exit with code 1 on score >= 1 instead of only score == 2 |
 | `--pack` | | `None` | Built-in attack pack to include (repeatable or `'all'`) |
 | `--exclude` | | `None` | Attack ID to exclude from evaluation (repeatable) |
 | `--min-severity` | | `low` | Minimum attack severity threshold: `low`, `medium`, or `high` |
@@ -125,7 +140,6 @@ Execute prompt injection evaluation against the target system prompt.
 | `--force-apply` | | `False` | Force applying the hardened prompt even if verification fails or is skipped |
 | `--patch-output` | `-o` | `<suite.stem>.patch` | Destination path for unified patch file |
 | `--verify-patch / --no-verify-patch` | | `True` | Re-run full test suite against hardened prompt to verify safety |
-| `--fail-on-suspicious` | | `False` | Exit with code 1 on score >= 1 instead of only score == 2 |
 | `--report-json` | `-r` | `None` | Export machine-readable JSON report for CI/CD |
 | `--redact-responses` | | `False` | Redact target responses in the report to first 80 chars + `...[redacted]` |
 | `--mock` | | `False` | Run with simulated edge model responses for offline CI pipeline testing |
@@ -153,11 +167,15 @@ guard-rail-edge calibrate --judge-model qwen2.5:7b
 
 | Option | Flag | Default | Description |
 |---|---|---|---|
-| `--judge-model` | `-j` | `qwen2.5:7b` | Ollama model to benchmark as evaluator judge |
+| `--judge-model` | `-j` | `qwen2.5:7b` | Model to benchmark as evaluator judge |
+| `--judge-backend` | | `ollama` | Judge evaluation backend: `ollama` or `openai` |
+| `--judge-base-url` | | `None` | Base URL for judge OpenAI backend (e.g. `https://api.openai.com/v1`) |
+| `--judge-votes` | | `1` | Number of self-consistency judge votes (majority vote across N queries) |
+| `--api-key-env` | | `OPENAI_API_KEY` | Environment variable name containing API key for OpenAI backend |
 | `--host` | | `http://localhost:11434` | Ollama server host URL |
-| `--timeout` | | `60.0` | Timeout in seconds for Ollama API requests |
+| `--timeout` | | `60.0` | Timeout in seconds for API requests |
 | `--judge-retries` | | `2` | Number of retries for the judge model on unparseable responses or errors |
-| `--seed` | | `None` | Deterministic random seed passed to Ollama options |
+| `--seed` | | `None` | Deterministic random seed passed to model options |
 | `--cases` | | Built-in | Path to custom calibration cases JSON file |
 | `--report-json` | | `None` | Path to write machine-readable calibration report JSON |
 | `--mock` | | `False` | Run calibration in mock mode for offline verification |
@@ -474,10 +492,11 @@ guard-rail-edge run \
 
 ## 🗺️ Roadmap
 
-- [ ] **v0.2.0**: Multi-turn adversarial dialog evaluation (multi-step social engineering & context poisoning).
-- [ ] **v0.3.0**: Automated GitHub Pull Request creation with self-healed prompts via GitHub CLI (`gh`).
-- [ ] **v0.4.0**: Native OpenAI-compatible API backend (support for vLLM, SGLang, and llama.cpp HTTP servers).
-- [ ] **v0.5.0**: Customizable rubric scoring weights and domain-specific regulatory compliance rule packs (HIPAA, PCI-DSS, GDPR).
+- [x] **v0.2.0**: Curated attack library (8 packs, 48 attacks), category breakdowns, and `--pack` CLI support.
+- [x] **v0.3.0**: Judge calibration suite (`calibrate`), OpenAI-compatible backend (vLLM, LiteLLM, OpenRouter, OpenAI), deterministic exploit markers, self-consistency judge voting (`--judge-votes`), format enforcement (`--fail-on-format`), and modular architecture.
+- [ ] **v0.4.0**: Multi-turn adversarial dialog evaluation (multi-step social engineering & context poisoning).
+- [ ] **v0.5.0**: Automated GitHub Pull Request creation with self-healed prompts via GitHub CLI (`gh`).
+- [ ] **v0.6.0**: Customizable rubric scoring weights and domain-specific regulatory compliance rule packs (HIPAA, PCI-DSS, GDPR).
 
 ---
 

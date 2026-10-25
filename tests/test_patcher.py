@@ -427,3 +427,171 @@ def test_apply_crlf_and_lf_prompt_file_line_endings_preserved(tmp_path: Path):
     assert b"\r" not in updated_lf_prompt
 
 
+def test_build_patcher_prompt_and_tagging():
+    """Verify build_patcher_prompt constructs prompt with matching untrusted tags."""
+    from guard_rail_edge.patcher import build_patcher_prompt
+    prompt, tag = build_patcher_prompt("Original prompt", "JSON", "Failed trace")
+    assert f"<untrusted_{tag}>" in prompt
+    assert f"</untrusted_{tag}>" in prompt
+    assert "Original prompt" in prompt
+    assert "Failed trace" in prompt
+
+
+def test_generate_hardened_prompt_with_client():
+    """Verify generate_hardened_prompt uses LLM client when available."""
+    from unittest.mock import MagicMock
+
+    from guard_rail_edge.schemas import TestResult
+
+    client = MagicMock()
+    client.generate.return_value = {
+        "response": json.dumps({
+            "hardened_system_prompt": "Hardened by LLM client",
+            "security_improvements": ["Fixed prompt leak"],
+        })
+    }
+
+    failed = [
+        TestResult(
+            test_name="Test 1",
+            adversarial_input="Attack",
+            target_response="Leaked",
+            score=2,
+            reasoning="Jailbroken",
+        )
+    ]
+    proposal, source = generate_hardened_prompt(
+        client=client,
+        model_name="test-model",
+        original_prompt="Original prompt",
+        expected_output_format="JSON",
+        failed_tests=failed,
+        mock_mode=False,
+    )
+
+    assert proposal.hardened_system_prompt == "Hardened by LLM client"
+    assert source == "llm"
+
+
+def test_generate_hardened_prompt_with_backend():
+    """Verify generate_hardened_prompt works with ChatBackend."""
+    from guard_rail_edge.backends.mock_backend import MockBackend
+    from guard_rail_edge.schemas import TestResult
+
+    backend = MockBackend(model="mock-patcher")
+    failed = [
+        TestResult(
+            test_name="Test 1",
+            adversarial_input="Attack",
+            target_response="Leaked",
+            score=2,
+            reasoning="Jailbroken",
+        )
+    ]
+    proposal, source = generate_hardened_prompt(
+        client=backend,
+        model_name="mock-patcher",
+        original_prompt="Original prompt",
+        expected_output_format="JSON",
+        failed_tests=failed,
+        mock_mode=False,
+    )
+    assert source in ("llm", "deterministic_fallback")
+    assert proposal.hardened_system_prompt != ""
+
+
+def test_generate_hardened_prompt_fallback_on_client_failure():
+    """Verify generate_hardened_prompt falls back to deterministic proposal when client fails."""
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    client.generate.side_effect = Exception("API connection dropped")
+
+    proposal, source = generate_hardened_prompt(
+        client=client,
+        model_name="test-model",
+        original_prompt="Original prompt",
+        expected_output_format="JSON",
+        failed_tests=[],
+        mock_mode=False,
+    )
+    assert source == "deterministic_fallback"
+    assert "Original prompt" in proposal.hardened_system_prompt
+
+
+def test_render_hardened_suite_json_fallback(monkeypatch, tmp_path: Path):
+    """Verify render_hardened_suite handles non-standard JSON without regex match."""
+    from guard_rail_edge.patcher import render_hardened_suite
+
+    raw_content = '{\n  "system_prompt": "Old",\n  "expected_output_format": "JSON"\n}\n'
+    monkeypatch.setattr("guard_rail_edge.patcher.re.search", lambda *a, **k: None)
+    rendered = render_hardened_suite(raw_content, "New hardened prompt")
+    parsed = json.loads(rendered)
+    assert parsed["system_prompt"] == "New hardened prompt"
+
+
+def test_generate_hardened_prompt_fallback_without_schema():
+    """Verify generate_hardened_prompt succeeds on second attempt without schema if first attempt fails."""
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    # First attempt with format schema fails, second attempt without format schema succeeds
+    client.generate.side_effect = [
+        Exception("Format schema rejected"),
+        {
+            "response": json.dumps({
+                "hardened_system_prompt": "Hardened on retry",
+                "security_improvements": ["Added security boundary"],
+            })
+        },
+    ]
+
+    proposal, source = generate_hardened_prompt(
+        client=client,
+        model_name="test-model",
+        original_prompt="Original prompt",
+        expected_output_format="JSON",
+        failed_tests=[],
+        mock_mode=False,
+    )
+    assert proposal.hardened_system_prompt == "Hardened on retry"
+    assert source == "llm"
+
+
+
+def test_create_unified_patch_custom_output_path(tmp_path: Path):
+    """Verify create_unified_patch respects output_patch_path."""
+    suite_file = tmp_path / "suite.json"
+    suite_file.write_text(json.dumps({"system_prompt": "Old", "tests": []}), encoding="utf-8")
+    custom_patch = tmp_path / "custom.patch"
+
+    diff_text, patch_path = create_unified_patch(
+        original_suite_path=suite_file,
+        hardened_system_prompt="Hardened",
+        output_patch_path=custom_patch,
+    )
+    assert patch_path == custom_patch
+    assert custom_patch.exists()
+
+
+def test_parse_patch_response_invalid_schema_in_regex_block():
+    """Verify parse_patch_response falls back when regex matches JSON but schema is invalid."""
+    raw = "```json\n{\"unknown_field\": 123}\n```"
+    proposal, source = parse_patch_response(raw, original_prompt="Old prompt", expected_output_format="JSON")
+    assert source == "deterministic_fallback"
+    assert "Old prompt" in proposal.hardened_system_prompt
+
+
+def test_get_git_relative_path_fallback(monkeypatch, tmp_path: Path):
+    """Verify get_git_relative_path falls back gracefully when git fails."""
+    from guard_rail_edge.patcher import get_git_relative_path
+
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    dummy_file = tmp_path / "some_file.json"
+    dummy_file.write_text("{}", encoding="utf-8")
+
+    rel_path = get_git_relative_path(dummy_file)
+    assert dummy_file.name in rel_path
+
+
+

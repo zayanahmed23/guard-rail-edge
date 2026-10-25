@@ -7,16 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.3.0] - 2026-10-25
 
 ### Added
-- **Judge Model Calibration (`guard-rail-edge calibrate`)**: New CLI command to benchmark and verify whether an LLM judge model is trustworthy before using it for security evaluations. Computes 3x3 confusion matrix, leak detection rate (recall), and false alarm rate against expert-labeled ground truth calibration set. Certifies judge as `TRUSTWORTHY` when leak detection rate >= 80%, false alarm rate <= 15%, and evaluation errors equal 0.
-- **Judge Calibration Dataset (50 Cases)**: Hand-crafted, balanced ground truth calibration set packaged in `guard_rail_edge/calibration/judge_calibration.json` with 20 safe cases (0), 10 suspicious cases (1), and 20 jailbroken cases (2), split 60% dev and 40% holdout. Over 60% of score-2 cases strictly test semantic reasoning without deterministic shortcuts.
-- **Deterministic Success Markers & Regexes**: Added `success_markers` and `success_regex` to `AttackModel` and `AdversarialTest` schemas, allowing code checks to identify objectively checkable exploit successes with zero judge variance.
-- **Judge-Always Flag (`--judge-always`)**: Added `--judge-always` CLI flag to run the judge model even when a deterministic check triggers, recording judge reasoning while keeping `max(deterministic, judge)` score.
-- **Verdict Detection Tracking**: Added `detection` field (`marker`, `regex`, `canary`, `verbatim`, `judge`) to results and summary tables to track verdicts derived from deterministic code vs LLM judges.
-- **Format Failure Enforcement (`--fail-on-format`)**: Added `--fail-on-format` CLI flag to optionally fail CI/CD pipeline (exit 1) on output format violations.
-- **Format Policy in Summary & Reports**: Summary banner and machine-readable reports now clearly display format failures and enforcement policy (`enforced` vs `report-only`).
+- **OpenAI-Compatible Backend (`guard_rail_edge.backends`)**:
+  - Implemented zero-dependency `OpenAIBackend` using standard library `urllib.request`.
+  - Added CLI options `--target-backend [ollama|openai]`, `--judge-backend [ollama|openai]`, `--target-base-url`, `--judge-base-url`, and `--api-key-env`.
+  - Supports vLLM, Ollama OpenAI endpoints, LiteLLM, OpenAI, Groq, OpenRouter, and any OpenAI-compatible API.
+  - Automatically suppresses and redacts API keys from all logs, exceptions, and CI artifacts.
+- **Judge Model Calibration (`guard-rail-edge calibrate`)**:
+  - New CLI command to benchmark and verify whether an LLM judge model is trustworthy before using it for security evaluations.
+  - Computes 3x3 confusion matrix, leak detection rate (recall), and false alarm rate against expert-labeled ground truth calibration set.
+  - Certifies judge as `TRUSTWORTHY` when leak detection rate >= 80%, false alarm rate <= 15%, and evaluation errors equal 0.
+- **Judge Calibration Dataset (50 Cases)**:
+  - Hand-crafted, balanced ground truth calibration set packaged in `guard_rail_edge/calibration/judge_calibration.json` with 20 safe cases (0), 10 suspicious cases (1), and 20 jailbroken cases (2), split 60% dev and 40% holdout.
+  - Over 60% of score-2 cases strictly test semantic reasoning without deterministic shortcuts.
+- **Calibrated Judge Prompt with Sequential Decision Procedure & Voting**:
+  - Restructured `AUDITOR_META_PROMPT` into a step-by-step sequential decision procedure with 6 concrete few-shot examples (2 per rubric score).
+  - Puts the `score` field FIRST in JSON output to anchor the model's reasoning before token generation.
+  - Added `--judge-votes N` self-consistency voting (majority vote across N evaluations) for high-stakes evaluations.
+- **Deterministic Attack Detection & Canary Scoring**:
+  - Added `success_markers` and `success_regex` to `AttackModel` and `AdversarialTest` schemas, allowing code checks to identify objectively checkable exploit successes with zero judge variance.
+  - Added `--judge-always` CLI flag to run the judge model even when a deterministic check triggers, recording judge reasoning while keeping `max(deterministic, judge)` score.
+  - Added `detection` field (`marker`, `regex`, `canary`, `verbatim`, `judge`) to results and summary tables to track verdicts derived from deterministic code vs LLM judges.
+- **Format Failure Enforcement (`--fail-on-format`)**:
+  - Added `--fail-on-format` CLI flag to optionally fail CI/CD pipeline (exit 1) on output format violations.
+  - Summary banner and machine-readable reports now clearly display format failures and enforcement policy (`enforced` vs `report-only`).
+- **Modular Codebase Architecture**:
+  - Split monolithic `main.py` into focused, single-responsibility modules under `guard_rail_edge/` and `guard_rail_edge/cli/`, each strictly under 450 lines.
+  - Test coverage on `patcher.py` increased to 96%, with overall repository coverage reaching ~90%.
 
 ### Changed
 - **Format Validity Separated from Security Score**: Programmatic format failures no longer raise the security score except for attacks in the `format-evasion` category where breaking format is the attack goal. Use `--fail-on-format` for the old strictness where format violations fail the pipeline.
