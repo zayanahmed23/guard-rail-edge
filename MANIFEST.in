@@ -1,0 +1,21 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include pyproject.toml
+recursive-include guard_rail_edge/attacks *.json
+recursive-include tests *.py
+recursive-include examples *.json
+
+exclude .gitignore
+exclude RUN_REPORT.md
+recursive-exclude docs *
+recursive-exclude scripts *
+recursive-exclude .github *
+
+prune build
+prune dist
+prune .venv
+prune venv
+prune env
+global-exclude __pycache__
+global-exclude *.py[cod]

@@ -1,12 +1,13 @@
 # guard-rail-edge 🛡️
 
+[![PyPI version](https://img.shields.io/pypi/v/guard-rail-edge?color=blue&style=flat-square)](https://pypi.org/project/guard-rail-edge/)
 [![CI & Tests](https://img.shields.io/github/actions/workflow/status/zayanahmed23/guard-rail-edge/ci.yml?branch=main&label=CI%20%26%20Tests&style=flat-square)](https://github.com/zayanahmed23/guard-rail-edge/actions)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Engine: Ollama](https://img.shields.io/badge/LLM_Engine-Ollama_Edge-orange.svg)](https://ollama.ai/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-![Guard-Rail Edge Terminal Demo](assets/demo.svg)
+![Guard-Rail Edge Terminal Demo](https://raw.githubusercontent.com/zayanahmed23/guard-rail-edge/main/assets/demo.svg)
 
 > **Edge-powered prompt injection & jailbreak testing CLI for CI/CD pipelines with automated self-healing diff patches.**
 
@@ -21,20 +22,17 @@
 Get up and running with automated prompt red-teaming in under 30 seconds:
 
 ```bash
-# 1. Install guard-rail-edge from GitHub
-pip install git+https://github.com/zayanahmed23/guard-rail-edge.git
+# 1. Install guard-rail-edge from PyPI
+pip install guard-rail-edge
 
-# Alternatively, clone the repository for development
-git clone https://github.com/zayanahmed23/guard-rail-edge.git
-cd guard-rail-edge
-pip install -e .
+# Alternatively, install from GitHub
+pip install git+https://github.com/zayanahmed23/guard-rail-edge.git
 
 # 2. Scaffold a starter attack suite (tests.json)
 guard-rail-edge init
 
 # 3. Run evaluation & self-healing in offline mock mode (no GPU/daemon required)
 guard-rail-edge run --suite tests.json --mock --auto-patch
-
 ```
 
 To run against your local GPU/CPU with **Ollama**:
@@ -334,7 +332,7 @@ guard-rail-edge run --suite tests.json --mock --apply
 
 `guard-rail-edge` is continuously validated against live local models via Ollama to ensure real-world prompt evaluation accuracy, JSON schema resilience, and judge stability.
 
-See the latest evaluation matrix in [docs/real-model-results.md](docs/real-model-results.md).
+See the latest evaluation matrix in [docs/real-model-results.md](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/real-model-results.md).
 
 ### Running the Smoke Test Locally
 Ensure your Ollama daemon is active (`ollama serve`), then run the smoke benchmark:
@@ -365,10 +363,10 @@ You can trigger a real-model evaluation run on GitHub Actions at any time using 
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) for local development setup, testing standards, and guidelines.
+Contributions are welcome! Please check out [CONTRIBUTING.md](https://github.com/zayanahmed23/guard-rail-edge/blob/main/CONTRIBUTING.md) for local development setup, testing standards, and guidelines.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the [MIT License](https://github.com/zayanahmed23/guard-rail-edge/blob/main/LICENSE) - see the [LICENSE](https://github.com/zayanahmed23/guard-rail-edge/blob/main/LICENSE) file for details.
