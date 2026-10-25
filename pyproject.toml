@@ -55,7 +55,7 @@ where = ["."]
 include = ["guard_rail_edge*"]
 
 [tool.setuptools.package-data]
-guard_rail_edge = ["attacks/*.json"]
+guard_rail_edge = ["attacks/*.json", "calibration/*.json"]
 
 [tool.ruff]
 line-length = 100

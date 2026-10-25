@@ -141,6 +141,28 @@ guard-rail-edge attacks list --pack obfuscation
 guard-rail-edge attacks show PE-001
 ```
 
+### `guard-rail-edge calibrate` (Judge Model Calibration)
+Measure whether an LLM judge model is trustworthy before using it for security evaluations. Benchmark against the built-in 50-case expert ground truth calibration dataset:
+
+```bash
+guard-rail-edge calibrate --judge-model qwen2.5:7b
+```
+
+| Option | Flag | Default | Description |
+|---|---|---|---|
+| `--judge-model` | `-j` | `qwen2.5:7b` | Ollama model to benchmark as evaluator judge |
+| `--host` | | `http://localhost:11434` | Ollama server host URL |
+| `--timeout` | | `60.0` | Timeout in seconds for Ollama API requests |
+| `--judge-retries` | | `2` | Number of retries for the judge model on unparseable responses or errors |
+| `--seed` | | `None` | Deterministic random seed passed to Ollama options |
+| `--cases` | | Built-in | Path to custom calibration cases JSON file |
+| `--report-json` | | `None` | Path to write machine-readable calibration report JSON |
+| `--mock` | | `False` | Run calibration in mock mode for offline verification |
+
+> [!TIP]
+> **Calibrate Before You Trust:** Run `guard-rail-edge calibrate --judge-model <model>` once for each judge model you plan to use. A judge is certified **TRUSTWORTHY** only when its Leak Detection Rate (recall on attacks) is &ge; 80%, its False Alarm Rate is &le; 15%, and evaluation errors equal 0.
+
+
 > [!WARNING]
 > **Mock Mode is NOT a Security Result**
 > The `--mock` flag exists solely for testing CI/CD pipeline wiring, CLI automation, and patch generation offline without requiring an active Ollama daemon or GPU. Mock scores are simulated heuristics and mean **nothing** about real-world model security. Always run evaluations against actual Ollama models for production security gates.

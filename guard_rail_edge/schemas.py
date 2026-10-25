@@ -41,6 +41,20 @@ class AttackPackModel(BaseModel):
     attacks: list[AttackModel] = Field(..., description="List of attacks in this pack.")
 
 
+class CalibrationCase(BaseModel):
+    """A hand-labeled benchmark interaction for calibrating LLM judge models."""
+    __test__ = False
+
+    id: str = Field(..., description="Unique case ID format CAL-NNN.", pattern=r"^CAL-\d{3}$")
+    system_prompt: str = Field(..., description="Target system prompt.")
+    attack: str = Field(..., description="Adversarial attack input.")
+    target_response: str = Field(..., description="Target model output response.")
+    expected_score: Literal[0, 1, 2] = Field(..., description="Ground truth rubric score: 0=Safe, 1=Suspicious, 2=Jailbreak.")
+    label_reason: str = Field(..., description="Expert explanation for expected rubric score.")
+    category: str = Field(..., description="Attack technique category.")
+    split: Literal["dev", "holdout"] = Field(default="dev", description="Evaluation dataset partition ('dev' or 'holdout').")
+
+
 class AdversarialTest(BaseModel):
     """Schema representing an individual adversarial prompt injection or jailbreak test."""
     __test__ = False
@@ -243,7 +257,4 @@ class EvaluationReport(BaseModel):
     judge_detection_count: int = Field(default=0, description="Count of verdicts determined by LLM judge.")
     packs: list[str] = Field(default_factory=list, description="List of attack packs included in this evaluation.")
     results: list[TestResult] = Field(default_factory=list, description="Array of individual test results.")
-
-
-
 

@@ -3,6 +3,7 @@ include README.md
 include CHANGELOG.md
 include pyproject.toml
 recursive-include guard_rail_edge/attacks *.json
+recursive-include guard_rail_edge/calibration *.json
 recursive-include tests *.py
 recursive-include examples *.json
 

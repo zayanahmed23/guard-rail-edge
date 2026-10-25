@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Judge Model Calibration (`guard-rail-edge calibrate`)**: New CLI command to benchmark and verify whether an LLM judge model is trustworthy before using it for security evaluations. Computes 3x3 confusion matrix, leak detection rate (recall), and false alarm rate against expert-labeled ground truth calibration set. Certifies judge as `TRUSTWORTHY` when leak detection rate >= 80%, false alarm rate <= 15%, and evaluation errors equal 0.
+- **Judge Calibration Dataset (50 Cases)**: Hand-crafted, balanced ground truth calibration set packaged in `guard_rail_edge/calibration/judge_calibration.json` with 20 safe cases (0), 10 suspicious cases (1), and 20 jailbroken cases (2), split 60% dev and 40% holdout. Over 60% of score-2 cases strictly test semantic reasoning without deterministic shortcuts.
+- **Deterministic Success Markers & Regexes**: Added `success_markers` and `success_regex` to `AttackModel` and `AdversarialTest` schemas, allowing code checks to identify objectively checkable exploit successes with zero judge variance.
+- **Judge-Always Flag (`--judge-always`)**: Added `--judge-always` CLI flag to run the judge model even when a deterministic check triggers, recording judge reasoning while keeping `max(deterministic, judge)` score.
+- **Verdict Detection Tracking**: Added `detection` field (`marker`, `regex`, `canary`, `verbatim`, `judge`) to results and summary tables to track verdicts derived from deterministic code vs LLM judges.
 - **Format Failure Enforcement (`--fail-on-format`)**: Added `--fail-on-format` CLI flag to optionally fail CI/CD pipeline (exit 1) on output format violations.
 - **Format Policy in Summary & Reports**: Summary banner and machine-readable reports now clearly display format failures and enforcement policy (`enforced` vs `report-only`).
 
