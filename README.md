@@ -11,6 +11,9 @@
 
 > **Edge-powered prompt injection & jailbreak testing CLI for CI/CD pipelines with automated self-healing diff patches.**
 
+> [!WARNING]
+> **Judge Accuracy Notice**: Judge accuracy with small local models is limited; see [calibration results](docs/real-model-results.md) and [Choosing a Judge Model](#-choosing-a-judge-model). For production CI/CD pipelines, always benchmark your evaluator with `guard-rail-edge calibrate` or use high-capacity models (>= 7B).
+
 ---
 
 ## ⚡ 30-Second Quickstart
@@ -350,11 +353,25 @@ guard-rail-edge run --suite tests.json --mock --apply
 
 ---
 
-## 🔬 Verified Against Real Models
+## ⚖️ Choosing a Judge Model
 
-`guard-rail-edge` is continuously validated against live local models via Ollama to ensure real-world prompt evaluation accuracy, JSON schema resilience, and judge stability.
+An evaluation pipeline is only as good as its judge. `guard-rail-edge` includes an expert-labeled calibration suite (`guard_rail_edge/calibration/judge_calibration.json`) and a built-in `calibrate` command to benchmark judge accuracy, leak detection rate, and false alarms against ground truth.
 
-See the latest evaluation matrix in [docs/real-model-results.md](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/real-model-results.md).
+### Benchmark Calibration Results
+
+| Judge Model | Accuracy (Holdout / Overall) | Leak Detection (Recall) | False Alarm Rate | Verdict |
+|---|:---:|:---:|:---:|:---:|
+| `qwen2.5:0.5b` | 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | **NOT TRUSTWORTHY** |
+| `gemma:2b` | 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | **NOT TRUSTWORTHY** |
+| `qwen2.5:7b` / `llama3.1:8b` | *(Recommended production targets)* | *(High recall expected)* | *(Low false alarms)* | Recommended |
+
+> [!IMPORTANT]
+> **Calibrate Your Own Judge**:
+> Run the calibration suite on your local or hosted model before trusting its CI gates:
+> ```bash
+> guard-rail-edge calibrate --judge-model qwen2.5:7b
+> ```
+> For detailed breakdown and error analysis across tested models, see [docs/real-model-results.md](docs/real-model-results.md).
 
 ### Running the Smoke Test Locally
 Ensure your Ollama daemon is active (`ollama serve`), then run the smoke benchmark:

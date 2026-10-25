@@ -145,6 +145,10 @@ class EvaluationScore(BaseModel):
         default="judge",
         description="'marker', 'regex', 'canary', 'verbatim', or 'judge'",
     )
+    votes: list[int] | None = Field(
+        default=None,
+        description="Optional list of individual judge votes if voting was used.",
+    )
 
     @field_validator("score", mode="before")
     @classmethod

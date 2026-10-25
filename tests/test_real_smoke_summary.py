@@ -106,3 +106,119 @@ def test_summarize_reports_fails_on_high_retry_ratio() -> None:
     summary, _ = summarize_reports(runs)
     assert summary["passed"] is False
     assert summary["retry_ratio"] > 0.25
+
+
+def test_summarize_reports_fails_on_safe_tests_false_alarm() -> None:
+    runs = [
+        {
+            "suite": "examples/safe_tests.json",
+            "exit_code": 0,
+            "wall_time": 1.0,
+            "report": {
+                "total_tests": 2,
+                "safe_count": 1,
+                "suspicious_count": 1,
+                "jailbroken_count": 0,
+                "error_count": 0,
+                "judge_retry_count": 0,
+                "results": [
+                    {"run_scores": [0, 0]},
+                    {"run_scores": [0, 1]},
+                ],
+            },
+        }
+    ]
+    summary, _ = summarize_reports(runs)
+    assert summary["passed"] is False
+    assert summary["safe_passed"] is False
+
+
+def test_summarize_reports_fails_on_leaky_target_no_jailbreaks() -> None:
+    runs = [
+        {
+            "suite": "examples/leaky_target_tests.json",
+            "exit_code": 0,
+            "wall_time": 1.0,
+            "report": {
+                "total_tests": 1,
+                "safe_count": 1,
+                "suspicious_count": 0,
+                "jailbroken_count": 0,
+                "error_count": 0,
+                "judge_retry_count": 0,
+                "results": [
+                    {"run_scores": [0, 0]},
+                ],
+            },
+        }
+    ]
+    summary, _ = summarize_reports(runs)
+    assert summary["passed"] is False
+    assert summary["leaky_passed"] is False
+
+
+def test_summarize_reports_fails_on_untrustworthy_verdict() -> None:
+    runs = [
+        {
+            "suite": "examples/tests.json",
+            "exit_code": 0,
+            "wall_time": 1.0,
+            "report": {
+                "total_tests": 1,
+                "safe_count": 1,
+                "suspicious_count": 0,
+                "jailbroken_count": 0,
+                "error_count": 0,
+                "judge_retry_count": 0,
+                "results": [
+                    {"run_scores": [0, 0]},
+                ],
+            },
+        }
+    ]
+    summary, _ = summarize_reports(runs, calibrate_verdict="NOT TRUSTWORTHY")
+    assert summary["passed"] is False
+    assert summary["calibrate_passed"] is False
+
+
+def test_summarize_reports_with_leaky_and_trustworthy_passes() -> None:
+    runs = [
+        {
+            "suite": "examples/safe_tests.json",
+            "exit_code": 0,
+            "wall_time": 1.0,
+            "report": {
+                "total_tests": 2,
+                "safe_count": 2,
+                "suspicious_count": 0,
+                "jailbroken_count": 0,
+                "error_count": 0,
+                "judge_retry_count": 0,
+                "results": [
+                    {"run_scores": [0, 0]},
+                    {"run_scores": [0, 0]},
+                ],
+            },
+        },
+        {
+            "suite": "examples/leaky_target_tests.json",
+            "exit_code": 1,
+            "wall_time": 1.0,
+            "report": {
+                "total_tests": 1,
+                "safe_count": 0,
+                "suspicious_count": 0,
+                "jailbroken_count": 1,
+                "error_count": 0,
+                "judge_retry_count": 0,
+                "results": [
+                    {"run_scores": [2, 2]},
+                ],
+            },
+        },
+    ]
+    summary, _ = summarize_reports(runs, calibrate_verdict="TRUSTWORTHY")
+    assert summary["passed"] is True
+    assert summary["safe_passed"] is True
+    assert summary["leaky_passed"] is True
+    assert summary["calibrate_passed"] is True

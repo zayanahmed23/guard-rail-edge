@@ -350,6 +350,7 @@ def evaluate_suite(
     seed: int | None = None,
     judge_retries: int = 2,
     judge_always: bool = False,
+    judge_votes: int = 1,
     progress_description: str = "Evaluating adversarial prompts...",
 ) -> tuple[list[TestResult], int]:
     """Evaluate a list of adversarial tests against a system prompt with repeat runs and worst-case aggregation."""
@@ -361,8 +362,11 @@ def evaluate_suite(
         sig = inspect.signature(grade_interaction)
         if "judge_retries" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
             eval_kwargs["judge_retries"] = judge_retries
+        if "judge_votes" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+            eval_kwargs["judge_votes"] = judge_votes
     except Exception:
         eval_kwargs["judge_retries"] = judge_retries
+        eval_kwargs["judge_votes"] = judge_votes
 
     test_results: list[TestResult] = []
     total_judge_retries = 0
@@ -750,6 +754,11 @@ def run(
         min=0,
         help="Number of retries for the judge model on unparseable responses or errors.",
     ),
+    judge_votes: int = typer.Option(
+        1,
+        "--judge-votes",
+        help="Number of self-consistency voting samples for the judge (default: 1).",
+    ),
     repeats: int = typer.Option(
         1,
         "--repeats",
@@ -970,6 +979,7 @@ def run(
         seed=seed,
         judge_retries=judge_retries,
         judge_always=judge_always,
+        judge_votes=judge_votes,
     )
 
     # 5. Summarize
@@ -1024,6 +1034,7 @@ def run(
                 repeats=repeats,
                 seed=seed,
                 judge_retries=judge_retries,
+                judge_votes=judge_votes,
                 progress_description="Verifying hardened prompt against full test suite...",
             )
             total_judge_retries += verif_retries
@@ -1282,6 +1293,7 @@ def calibrate(
     host: str = typer.Option("http://localhost:11434", "--host", help="Ollama host URL."),
     timeout: float = typer.Option(60.0, "--timeout", help="Timeout in seconds for Ollama API requests."),
     judge_retries: int = typer.Option(2, "--judge-retries", help="Max retry attempts for judge evaluations."),
+    judge_votes: int = typer.Option(1, "--judge-votes", help="Number of self-consistency voting samples for the judge (default: 1)."),
     seed: int | None = typer.Option(None, "--seed", help="Random seed for reproducible evaluations."),
     cases: Path | None = typer.Option(None, "--cases", help="Path to custom calibration cases JSON file."),
     report_json: Path | None = typer.Option(None, "--report-json", help="Path to write machine-readable calibration report JSON."),
@@ -1340,6 +1352,7 @@ def calibrate(
                     judge_retries=judge_retries,
                     category=c.category,
                     expected_score=c.expected_score,
+                    judge_votes=judge_votes,
                 )
                 results.append({
                     "id": c.id,
