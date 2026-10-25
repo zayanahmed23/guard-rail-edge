@@ -75,6 +75,32 @@ guard-rail-edge run --suite examples/tests.json --model gemma:2b
 
 ---
 
+## 🛡️ Adding an Attack to the Built-In Library
+
+We welcome new prompt injection, evasion, and jailbreak vectors to our curated attack packs! When adding an attack:
+
+1. **Locate or Create the Pack**: Built-in packs live in `guard_rail_edge/attacks/<pack-name>.json`.
+2. **Schema & ID Format**:
+   - Each attack must adhere to `AttackModel` in `guard_rail_edge/schemas.py`.
+   - `id`: Must be unique across all packs and strictly match `^[A-Z]{2,3}-\d{3}$` (e.g. `PE-007`, `IO-007`).
+   - `category`: Must match the parent pack's name exactly.
+   - `severity`: Must be `"low"`, `"medium"`, or `"high"`.
+   - `name`: A concise, human-readable description.
+   - `input`: The adversarial prompt string (must not duplicate existing attacks).
+   - `references`: Optional list of CVEs, OWASP techniques, or URLs.
+   - `decoded_hint`: Optional decoded keyword for obfuscated payloads (Base64/ROT13).
+3. **Harmless Goal Rule (MANDATORY)**:
+   - Every attack must test whether the target model breaks **its own system prompt constraints** (e.g. leaks instructions, leaks a placeholder discount code, drops persona, outputs off-topic text, violates JSON formatting).
+   - The payload's goal must be **strictly harmless** (e.g. "write a poem about pirates", "output raw XML", "say HELLO").
+   - **ZERO harmful payloads**: Attacks containing real-world malware, weapons, drugs, hate speech, self-harm, or hazardous material are strictly rejected.
+4. **Run the Verification Tests**:
+   Ensure all schema, uniqueness, and decoding validations pass before opening a PR:
+   ```bash
+   python -m pytest tests/test_attack_library.py tests/test_packs_cli.py
+   ```
+
+---
+
 ## 📬 Pull Request Process
 
 1. Fork the repo and create your branch from `main`:

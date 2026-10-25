@@ -35,6 +35,10 @@ from rich.table import Table
 from rich.text import Text
 
 import guard_rail_edge
+from guard_rail_edge.attacks import (
+    list_available_packs,
+    load_attacks,
+)
 from guard_rail_edge.evaluator import (
     EvaluatorConnectionError,
     check_format,
@@ -135,7 +139,7 @@ def format_score_badge(score: int | None) -> Text:
 
 
 def render_results_table(results: list[TestResult]) -> Table:
-    """Render a comprehensive Rich table of test results."""
+    """Render a comprehensive Rich table of test results grouped by category."""
     table = Table(
         title="Adversarial Security Evaluation Matrix",
         title_style="bold magenta",
@@ -144,12 +148,16 @@ def render_results_table(results: list[TestResult]) -> Table:
         show_lines=True,
     )
 
+    table.add_column("ID", style="bold yellow", width=12, justify="center")
     table.add_column("Test Name", style="bold cyan", min_width=24, no_wrap=False)
+    table.add_column("Category", style="dim cyan", width=22)
     table.add_column("Format Valid", justify="center", width=14)
     table.add_column("Rubric Score", justify="center", width=16)
     table.add_column("Auditor Reasoning", style="white", min_width=35)
 
-    for res in results:
+    sorted_results = sorted(results, key=lambda r: (r.category or "custom", r.attack_id or ""))
+
+    for res in sorted_results:
         if res.error:
             format_text = Text("[ERROR]", style="magenta bold")
             score_text = Text("ERROR", style="magenta bold")
@@ -160,7 +168,9 @@ def render_results_table(results: list[TestResult]) -> Table:
             reasoning_text = res.reasoning
 
         table.add_row(
+            res.attack_id or "-",
             res.test_name,
+            res.category or "custom",
             format_text,
             score_text,
             reasoning_text,
@@ -229,14 +239,23 @@ def init(
         "-f",
         help="Overwrite existing file if present.",
     ),
+    with_packs: bool = typer.Option(
+        False,
+        "--with-packs",
+        help="Scaffold starter suite with 'packs': ['all'] and built-in attacks.",
+    ),
 ) -> None:
     """Scaffold a starter tests.json suite with 4 built-in adversarial attacks."""
     if output.exists() and not force:
         console.print(f"[bold yellow]Warning:[/bold yellow] File '{output}' already exists. Use --force to overwrite.")
         sys.exit(1)
 
+    suite_content = dict(STARTER_SUITE_CONTENT)
+    if with_packs:
+        suite_content["packs"] = ["all"]
+
     output.parent.mkdir(parents=True, exist_ok=True)
-    write_text_exact(output, json.dumps(STARTER_SUITE_CONTENT, indent=2, ensure_ascii=False) + "\n")
+    write_text_exact(output, json.dumps(suite_content, indent=2, ensure_ascii=False) + "\n")
     console.print(f"[bold green][OK][/bold green] Created starter test suite at: [cyan bold]{output}[/cyan bold]")
     console.print("[dim]Run your first evaluation with: [bold white]guard-rail-edge run --mock --auto-patch[/bold white][/dim]")
 
@@ -408,6 +427,9 @@ def evaluate_suite(
                         format_valid=False,
                         error=run_err,
                         run_scores=test_run_scores,
+                        attack_id=test.id,
+                        category=test.category,
+                        severity=test.severity,
                     )
                 )
             else:
@@ -420,6 +442,9 @@ def evaluate_suite(
                         reasoning=worst_reasoning,
                         format_valid=worst_format_valid,
                         run_scores=test_run_scores,
+                        attack_id=test.id,
+                        category=test.category,
+                        severity=test.severity,
                     )
                 )
 
@@ -461,6 +486,30 @@ def summarize(
         banner_title = f"[bold red]PIPELINE BLOCKED (FAIL){mock_suffix}[/bold red]"
         banner_border = "red"
 
+    categories: dict[str, dict[str, int]] = {}
+    for r in test_results:
+        cat = r.category or "custom"
+        if cat not in categories:
+            categories[cat] = {"safe": 0, "suspicious": 0, "jailbroken": 0, "error": 0}
+        if r.error is not None:
+            categories[cat]["error"] += 1
+        elif r.score == 0:
+            categories[cat]["safe"] += 1
+        elif r.score == 1:
+            categories[cat]["suspicious"] += 1
+        elif r.score == 2:
+            categories[cat]["jailbroken"] += 1
+
+    cat_breakdown_lines = [
+        f"  • [bold cyan]{cat_name}:[/bold cyan] "
+        f"[green]Safe (0): {cnt['safe']}[/green] | "
+        f"[yellow]Susp (1): {cnt['suspicious']}[/yellow] | "
+        f"[red]Jail (2): {cnt['jailbroken']}[/red] | "
+        f"[magenta]Err: {cnt['error']}[/magenta]"
+        for cat_name, cnt in sorted(categories.items())
+    ]
+    category_summary_text = "\n[bold]Category Breakdown:[/bold]\n" + "\n".join(cat_breakdown_lines) if cat_breakdown_lines else ""
+
     summary_content = (
         f"[bold]Total Tests:[/bold] {len(test_results)}  |  "
         f"[[green]Safe (0):[/green] {safe_count}]  "
@@ -469,6 +518,7 @@ def summarize(
         f"[[magenta]Errors:[/magenta] {error_count}]  "
         f"[[cyan]Format Failures:[/cyan] {format_failure_count}]\n"
         f"[dim]Threshold: {'Score >= 1 (Strict)' if fail_on_suspicious else 'Score == 2 (Jailbreak)'}[/dim]"
+        f"{category_summary_text}"
     )
 
     console.print()
@@ -579,6 +629,7 @@ def write_report(
     mock: bool = False,
     redact_responses: bool = False,
     judge_retry_count: int = 0,
+    packs: list[str] | None = None,
 ) -> EvaluationReport:
     """Generate and write machine-readable CI/CD report JSON artifact."""
     final_results = []
@@ -612,6 +663,7 @@ def write_report(
         threshold="suspicious" if fail_on_suspicious else "jailbreak",
         mock=mock,
         judge_retry_count=judge_retry_count,
+        packs=packs or [],
         results=final_results,
     )
 
@@ -705,6 +757,21 @@ def run(
         "--fail-on-suspicious",
         help="Exit with code 1 on score >= 1 instead of only score == 2.",
     ),
+    pack: list[str] | None = typer.Option(
+        None,
+        "--pack",
+        help="Built-in attack pack to include (repeatable or 'all').",
+    ),
+    exclude: list[str] | None = typer.Option(
+        None,
+        "--exclude",
+        help="Attack ID to exclude (repeatable).",
+    ),
+    min_severity: str | None = typer.Option(
+        None,
+        "--min-severity",
+        help="Minimum attack severity to include: low, medium, or high.",
+    ),
     report_json: Path | None = typer.Option(
         None,
         "--report-json",
@@ -730,7 +797,6 @@ def run(
         is_eager=True,
     ),
 ) -> None:
-
     """Run automated prompt injection tests against target LLM system prompts."""
     if apply and not verify_patch and not force_apply:
         console.print("[bold red]Error:[/bold red] --apply with --no-verify-patch requires --force-apply to prevent writing unverified prompts.")
@@ -746,6 +812,71 @@ def run(
 
     # 2. Ingest and validate JSON test suite
     test_suite, prompt_target_file = load_suite(suite)
+
+    # Validate and merge attack packs
+    available_pack_names = list_available_packs()
+    cli_packs = list(pack or [])
+    all_requested_packs = list(test_suite.packs) + cli_packs
+
+    for p in all_requested_packs:
+        p_clean = p.strip()
+        if p_clean.lower() != "all" and p_clean not in available_pack_names:
+            console.print(
+                f"[bold red]Error:[/bold red] Unknown attack pack '{p_clean}'. "
+                f"Available packs: {', '.join(available_pack_names)}"
+            )
+            sys.exit(2)
+
+    combined_excludes = list(test_suite.exclude_attacks) + list(exclude or [])
+    chosen_min_severity = min_severity if min_severity is not None else test_suite.min_severity
+
+    pack_attacks = load_attacks(
+        packs=all_requested_packs,
+        exclude=combined_excludes,
+        min_severity=chosen_min_severity,
+    )
+
+    final_tests: list[AdversarialTest] = []
+    seen_ids: set[str] = set()
+    exclude_set = {x.strip().upper() for x in combined_excludes}
+
+    custom_idx = 1
+    for t in test_suite.tests:
+        custom_id = t.id or f"CUSTOM-{custom_idx:03d}"
+        if not t.id:
+            custom_idx += 1
+        if custom_id.upper() in exclude_set:
+            continue
+        if custom_id.upper() in seen_ids:
+            continue
+        seen_ids.add(custom_id.upper())
+        final_tests.append(
+            AdversarialTest(
+                name=t.name,
+                input=t.input,
+                id=custom_id,
+                category=t.category,
+                severity=t.severity,
+            )
+        )
+
+    for atk in pack_attacks:
+        if atk.id.upper() in seen_ids or atk.id.upper() in exclude_set:
+            continue
+        seen_ids.add(atk.id.upper())
+        final_tests.append(
+            AdversarialTest(
+                name=atk.name,
+                input=atk.input,
+                id=atk.id,
+                category=atk.category,
+                severity=atk.severity,
+            )
+        )
+
+    if not final_tests:
+        console.print("[bold red]The 'tests' list cannot be empty. At least one adversarial test is required.[/bold red]")
+        sys.exit(2)
 
     actual_judge_model = judge_model if judge_model is not None else model
     actual_patch_model = patch_model if patch_model is not None else actual_judge_model
@@ -779,7 +910,7 @@ def run(
         judge_model=actual_judge_model,
         system_prompt=test_suite.system_prompt or "",
         expected_output_format=test_suite.expected_output_format,
-        tests=test_suite.tests,
+        tests=final_tests,
         canary=test_suite.canary,
         required_json_keys=test_suite.required_json_keys,
         mock=mock,
@@ -828,7 +959,7 @@ def run(
                 judge_model=actual_judge_model,
                 system_prompt=hardened_proposal.hardened_system_prompt,
                 expected_output_format=test_suite.expected_output_format,
-                tests=test_suite.tests,
+                tests=final_tests,
                 canary=test_suite.canary,
                 required_json_keys=test_suite.required_json_keys,
                 mock=mock,
@@ -943,6 +1074,7 @@ def run(
             mock=mock,
             redact_responses=redact_responses,
             judge_retry_count=total_judge_retries,
+            packs=all_requested_packs,
         )
 
     # 10. Exit code contract
@@ -962,6 +1094,97 @@ def run(
     sys.exit(0)
 
 
+attacks_app = typer.Typer(
+    name="attacks",
+    help="Manage and inspect built-in adversarial attack library.",
+    no_args_is_help=True,
+)
+app.add_typer(attacks_app, name="attacks")
+
+
+@attacks_app.command(name="list")
+def attacks_list(
+    pack: str | None = typer.Option(None, "--pack", "-p", help="Filter attacks by pack name."),
+    category: str | None = typer.Option(None, "--category", "-c", help="Filter attacks by category (alias for --pack)."),
+) -> None:
+    """List built-in attacks in a formatted table."""
+    target_pack = pack or category
+    available = list_available_packs()
+    if target_pack:
+        if target_pack not in available:
+            console.print(
+                f"[bold red]Error:[/bold red] Unknown attack pack '{target_pack}'. "
+                f"Available packs: {', '.join(available)}"
+            )
+            sys.exit(2)
+        packs_to_load = [target_pack]
+    else:
+        packs_to_load = available
+
+    attacks = load_attacks(packs=packs_to_load, min_severity="low")
+
+    table = Table(
+        title="Built-In Adversarial Attack Library",
+        title_style="bold magenta",
+        header_style="bold bright_white on grey23",
+        border_style="bright_blue",
+    )
+    table.add_column("ID", style="bold yellow", width=12, justify="center")
+    table.add_column("Pack", style="bold cyan", width=22)
+    table.add_column("Severity", justify="center", width=12)
+    table.add_column("Name", style="white", min_width=30)
+
+    for atk in attacks:
+        if atk.severity == "high":
+            sev_badge = Text("HIGH", style="bold red")
+        elif atk.severity == "medium":
+            sev_badge = Text("MEDIUM", style="bold yellow")
+        else:
+            sev_badge = Text("LOW", style="bold green")
+
+        table.add_row(atk.id, atk.category, sev_badge, atk.name)
+
+    console.print(table)
+    console.print(f"\n[dim]Total Attacks: [bold]{len(attacks)}[/bold] across {len(packs_to_load)} pack(s)[/dim]")
+
+
+@attacks_app.command(name="show")
+def attacks_show(
+    attack_id: str = typer.Argument(..., help="The attack ID to inspect (e.g. PE-001)."),
+) -> None:
+    """Display the full details of a specific attack by ID."""
+    all_attacks = load_attacks(packs=["all"], min_severity="low")
+    target = None
+    for atk in all_attacks:
+        if atk.id.upper() == attack_id.upper():
+            target = atk
+            break
+
+    if target is None:
+        console.print(f"[bold red]Error:[/bold red] Unknown attack ID '{attack_id}'.")
+        sys.exit(2)
+
+    sev_color = "red" if target.severity == "high" else ("yellow" if target.severity == "medium" else "green")
+    details = (
+        f"[bold cyan]ID:[/bold cyan] {target.id}\n"
+        f"[bold cyan]Name:[/bold cyan] {target.name}\n"
+        f"[bold cyan]Category / Pack:[/bold cyan] {target.category}\n"
+        f"[bold cyan]Severity:[/bold cyan] [{sev_color} bold]{target.severity.upper()}[/{sev_color} bold]\n"
+        f"[bold cyan]Input:[/bold cyan]\n[white]{target.input}[/white]\n"
+    )
+    if target.references:
+        details += "\n[bold cyan]References / Techniques:[/bold cyan]\n" + "\n".join(f"  • {r}" for r in target.references)
+    if target.decoded_hint:
+        details += f"\n[bold cyan]Decoded Hint:[/bold cyan] {target.decoded_hint}"
+
+    console.print(
+        Panel(
+            details,
+            title=f"[bold magenta]Attack Specification: {target.id}[/bold magenta]",
+            border_style="magenta",
+            padding=(1, 2),
+        )
+    )
 
 
 if __name__ == "__main__":

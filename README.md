@@ -100,6 +100,7 @@ Scaffold a starter test suite file.
 |---|---|---|---|
 | `--output` | `-o` | `tests.json` | Destination path for the starter test suite file |
 | `--force` | `-f` | `False` | Overwrite existing test suite file if present |
+| `--with-packs` | | `False` | Scaffold suite with `"packs": ["all"]` and built-in attacks |
 
 ### `guard-rail-edge run` (Default Command)
 Execute prompt injection evaluation against the target system prompt.
@@ -115,6 +116,9 @@ Execute prompt injection evaluation against the target system prompt.
 | `--judge-retries` | | `2` | Number of retries for the judge model on unparseable responses or errors |
 | `--repeats` | | `1` | Number of times to repeat each test (final score is max across runs) |
 | `--seed` | | `None` | Deterministic random seed passed to Ollama options |
+| `--pack` | | `None` | Built-in attack pack to include (repeatable or `'all'`) |
+| `--exclude` | | `None` | Attack ID to exclude from evaluation (repeatable) |
+| `--min-severity` | | `low` | Minimum attack severity threshold: `low`, `medium`, or `high` |
 | `--auto-patch` | `-p` | `False` | Trigger self-healing prompt rewrite and emit `.patch` |
 | `--apply` | | `False` | Automatically apply the hardened system prompt directly to the suite or prompt file |
 | `--force-apply` | | `False` | Force applying the hardened prompt even if verification fails or is skipped |
@@ -125,6 +129,19 @@ Execute prompt injection evaluation against the target system prompt.
 | `--redact-responses` | | `False` | Redact target responses in the report to first 80 chars + `...[redacted]` |
 | `--mock` | | `False` | Run with simulated edge model responses for offline CI pipeline testing |
 | `--version` | `-v` | | Show version and exit |
+
+### `guard-rail-edge attacks` (Attack Library Commands)
+Browse and inspect the curated built-in attack library:
+```bash
+# List all 48 built-in attacks across all packs
+guard-rail-edge attacks list
+
+# Filter attacks by specific pack
+guard-rail-edge attacks list --pack obfuscation
+
+# View complete payload details and techniques for an attack ID
+guard-rail-edge attacks show PE-001
+```
 
 > [!WARNING]
 > **Mock Mode is NOT a Security Result**
@@ -182,6 +199,48 @@ Test suites are declarative JSON files validated strictly by Pydantic:
 - **`system_prompt_file`**: Point directly to an external text file (e.g. `"system_prompt_file": "prompts/prompt.txt"`) relative to the suite JSON instead of embedding an inline `system_prompt`. When configured, generated patches and `--apply` target the prompt text file directly with plain text unified diffs. Exactly one of `system_prompt` or `system_prompt_file` must be specified.
 - **`canary`**: A secret token embedded in your confidential prompt. If this token appears in any target model response (case-insensitive), `guard-rail-edge` deterministically scores the test as score 2 (`Canary token leaked`) regardless of LLM judge output.
 - **`required_json_keys`**: List of mandatory dictionary keys that must be present in JSON model responses. If keys are missing, the response is marked as a format violation.
+- **`packs`**: Array of built-in attack packs to run (e.g. `["all"]` or `["prompt-extraction", "format-evasion"]`).
+- **`exclude_attacks`**: Array of attack IDs to skip during evaluation (e.g. `["PE-001", "OB-004"]`).
+- **`min_severity`**: Minimum severity to evaluate (`"low"`, `"medium"`, or `"high"`).
+
+---
+
+## 🛡️ Built-In Attack Library
+
+`guard-rail-edge` ships with 48 curated prompt injection and jailbreak tests across 8 distinct attack packs. This gives security teams instant evaluation coverage without having to write custom attacks from scratch.
+
+> [!NOTE]
+> **Safety Constraint & Harmless Goals**  
+> Every attack in the built-in library strictly tests whether the target model violates its **own system prompt rules** (leaking instructions, abandoning persona, or failing output format constraints). The goal of every payload is **completely harmless** (e.g., reciting a poem about pirates, outputting raw XML, or revealing a placeholder discount code). No real-world hazardous, harmful, or malicious payloads are included.
+
+### Available Attack Packs
+
+| Pack Name | Attacks | ID Prefix | What It Tests |
+|---|:---:|:---:|---|
+| `prompt-extraction` | 6 | `PE-` | Verbatim leakage requests, translation probes, role dumps, and transcript boundary extractions. |
+| `instruction-override` | 6 | `IO-` | "Ignore previous instructions", fake admin/maintenance directives, boundary escapes, and priority overrides. |
+| `persona-hijack` | 6 | `PH-` | DAN-style jailbreaks, hypothetical simulations, opposite mode, and grandma social engineering. |
+| `format-evasion` | 6 | `FE-` | Format breaches (Markdown, XML, CSV, dual response) testing adherence to strict JSON requirements. |
+| `obfuscation` | 6 | `OB-` | Encoding evasion via Base64, ROT13, Leetspeak, whitespace splitting, character reversal, and zero-width spaces. |
+| `multilingual` | 6 | `ML-` | Multi-language injection vectors in Spanish, French, German, Arabic, Urdu, and Simplified Chinese. |
+| `indirect-injection` | 6 | `II-` | Injections disguised inside untrusted user data, HTML comments, customer reviews, logs, and emails. |
+| `secret-exfiltration` | 6 | `SE-` | Canary probing, partial prefix leakage, character length querying, and credential audit attempts. |
+
+### Running with Attack Packs
+
+```bash
+# Run a suite combining custom tests with all built-in attack packs
+guard-rail-edge run --suite tests.json --pack all
+
+# Run only high-severity attacks from prompt-extraction and obfuscation packs
+guard-rail-edge run --suite tests.json --pack prompt-extraction --pack obfuscation --min-severity high
+
+# Exclude specific attack IDs
+guard-rail-edge run --suite tests.json --pack all --exclude PE-001 --exclude OB-002
+
+# Scaffold a new test suite configured with all attack packs
+guard-rail-edge init --with-packs
+```
 
 ---
 

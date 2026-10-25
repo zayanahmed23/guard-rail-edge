@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-10-25
+
+### Features & Security
+- **Curated Built-In Attack Library (8 Packs, 48 Attacks)**: Shipped an extensible library of 48 categorized, curated prompt injection, evasion, and jailbreak vectors packaged as JSON package data (`guard_rail_edge/attacks/*.json`).
+  - `prompt-extraction` (6 attacks): Direct verbatim leakage, translation probes, role dumps, and transcript boundary extractions.
+  - `instruction-override` (6 attacks): Priority override claims, fake admin/maintenance directives, boundary escapes, and context resets.
+  - `persona-hijack` (6 attacks): DAN-style jailbreaks, hypothetical world simulations, opposite mode, and emotional grandma exploit framing.
+  - `format-evasion` (6 attacks): Markdown, XML, CSV, and dual response evasion testing strict JSON schema compliance.
+  - `obfuscation` (6 attacks): Base64, ROT13, Leetspeak, whitespace fragmentation, reversed text, and Unicode zero-width space smuggling.
+  - `multilingual` (6 attacks): Cross-lingual transfer attacks in Spanish, French, German, Arabic, Urdu, and Simplified Chinese.
+  - `indirect-injection` (6 attacks): Hidden injections inside HTML comments, customer reviews, logs, and forwarded emails.
+  - `secret-exfiltration` (6 attacks): Canary probing, partial prefix leakage, character length querying, and credential audit attempts.
+- **Harmless Goal Security Constraint**: All built-in attacks strictly test whether target models violate their own system prompt constraints (prompt leakage, persona deviations, format violations, off-topic drift). The goal of every payload is completely harmless (e.g. reciting a pirate poem, outputting XML, revealing placeholder discount codes). Zero real-world hazardous or malicious payloads are included.
+- **Suite & CLI Pack Integration**: Added `packs`, `exclude_attacks`, and `min_severity` fields to `TestSuite`. Added `--pack`, `--exclude`, and `--min-severity` CLI overrides on `run`. Added `CUSTOM-001`... auto-assignment for custom tests without IDs. Added `--with-packs` to `guard-rail-edge init`.
+- **Attack Library CLI (`guard-rail-edge attacks`)**: Added `attacks list [--pack NAME] [--category X]` and `attacks show ID` CLI subcommands for browsing and inspecting attacks.
+- **Category Breakdown & ID Column**: Added `ID` and `Category` columns to the terminal evaluation matrix with category grouping, and per-category breakdown metrics to the summary banner.
+
+---
+
 ## [0.1.3] - 2026-10-25
 
 ### Improvements

@@ -1,8 +1,31 @@
 """Pydantic schemas for the guard-rail-edge test suite and evaluation results."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+class AttackModel(BaseModel):
+    """Schema representing an individual attack from a built-in attack pack."""
+    __test__ = False
+
+    id: str = Field(..., description="Unique ID format XX-NNN across all packs.", pattern=r"^[A-Z]{2,3}-\d{3}$")
+    name: str = Field(..., description="Human-readable name of the attack.")
+    category: str = Field(..., description="Attack category matching the pack name.")
+    severity: Literal["low", "medium", "high"] = Field(..., description="Attack severity level.")
+    input: str = Field(..., description="Adversarial input prompt.")
+    references: list[str] = Field(default_factory=list, description="Optional references or technique descriptions.")
+    decoded_hint: str | None = Field(default=None, description="Optional decoded hint for obfuscation verification.")
+
+
+class AttackPackModel(BaseModel):
+    """Schema representing a pack of curated attacks."""
+    __test__ = False
+
+    pack: str = Field(..., description="Pack name matching category.")
+    version: str = Field(default="1", description="Pack schema version.")
+    description: str = Field(..., description="Description of the attack pack.")
+    attacks: list[AttackModel] = Field(..., description="List of attacks in this pack.")
 
 
 class AdversarialTest(BaseModel):
@@ -11,6 +34,9 @@ class AdversarialTest(BaseModel):
 
     name: str = Field(..., description="A brief name for the test.")
     input: str = Field(..., description="The prompt injection attempt.")
+    id: str | None = Field(default=None, description="Unique test or attack ID.")
+    category: str | None = Field(default=None, description="Attack category or pack name.")
+    severity: str | None = Field(default=None, description="Attack severity level.")
 
 
 class TestSuite(BaseModel):
@@ -20,17 +46,19 @@ class TestSuite(BaseModel):
     system_prompt: str | None = Field(default=None, description="The target system prompt we are testing.")
     system_prompt_file: str | None = Field(default=None, description="Path to external system prompt text file relative to suite.")
     expected_output_format: str = Field(..., description="e.g., 'JSON', 'Markdown'.")
-    tests: list[AdversarialTest] = Field(..., description="The array of attacks.")
+    tests: list[AdversarialTest] = Field(default_factory=list, description="The array of custom attacks.")
+    packs: list[str] = Field(default_factory=list, description="List of attack pack names or ['all'].")
+    exclude_attacks: list[str] = Field(default_factory=list, description="List of attack IDs to exclude.")
+    min_severity: Literal["low", "medium", "high"] | str = Field(default="low", description="Minimum severity threshold.")
     canary: str | None = Field(default=None, description="Optional secret canary string to detect prompt leakage.")
     required_json_keys: list[str] | None = Field(default=None, description="Optional required JSON keys in response.")
 
-    @field_validator("tests")
-    @classmethod
-    def validate_tests_not_empty(cls, v: list[AdversarialTest]) -> list[AdversarialTest]:
-        """Ensure the tests array contains at least one test case."""
-        if not v:
+    @model_validator(mode="after")
+    def validate_tests_or_packs(self) -> "TestSuite":
+        """Ensure either tests or packs is provided."""
+        if not self.tests and not self.packs:
             raise ValueError("The 'tests' list cannot be empty. At least one adversarial test is required.")
-        return v
+        return self
 
     @model_validator(mode="after")
     def validate_prompt_source(self) -> "TestSuite":
@@ -99,6 +127,9 @@ class TestResult(BaseModel):
     format_valid: bool = Field(default=False, description="Whether format was valid.")
     error: str | None = Field(default=None, description="Error message if evaluation failed.")
     run_scores: list[int | None] = Field(default_factory=list, description="Scores across repeat runs.")
+    attack_id: str | None = Field(default=None, description="Attack ID (e.g., PE-001 or CUSTOM-001).")
+    category: str | None = Field(default=None, description="Attack category name.")
+    severity: str | None = Field(default=None, description="Attack severity level.")
 
 
     @model_validator(mode="after")
@@ -166,6 +197,7 @@ class EvaluationReport(BaseModel):
     threshold: str = Field(default="jailbreak", description="'jailbreak' (score 2) or 'suspicious' (score >= 1).")
     mock: bool = Field(default=False, description="Whether evaluation was run in mock mode.")
     judge_retry_count: int = Field(default=0, description="Total number of judge retries performed across the evaluation.")
+    packs: list[str] = Field(default_factory=list, description="List of attack packs included in this evaluation.")
     results: list[TestResult] = Field(default_factory=list, description="Array of individual test results.")
 
 
