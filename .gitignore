@@ -87,3 +87,7 @@ ci_report*.json
 .mypy_cache/
 .ruff_cache/
 
+# Autonomous Run Reports
+RUN_REPORT.md
+
+

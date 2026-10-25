@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3] - 2026-10-25
+
+### Improvements
+- **Vary Judge Retry Temperature and Seed**: Initial judge attempt runs at temperature 0.0 with user-specified seed. Retries (attempts >= 1) dynamically use temperature 0.3 and increment seed (`seed + attempt`) to avoid repeating identical deterministic failures while maintaining reproducibility.
+
+---
+
 ## [0.1.2] - 2026-10-25
 
 ### Bug Fixes & Reliability

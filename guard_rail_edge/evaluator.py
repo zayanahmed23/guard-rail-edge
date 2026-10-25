@@ -384,19 +384,21 @@ def grade_interaction(
         programmatic_format_ok=programmatic_format_ok,
     )
 
-    options: dict[str, Any] = {"temperature": 0.0}
-    if seed is not None:
-        options["seed"] = seed
-
     total_attempts = 1 + max(0, judge_retries)
     last_error: Exception | None = None
 
     for attempt in range(total_attempts):
         use_schema = (attempt % 2 == 0)
+        attempt_options: dict[str, Any] = {
+            "temperature": 0.0 if attempt == 0 else 0.3,
+        }
+        if seed is not None:
+            attempt_options["seed"] = seed + attempt
+
         generate_kwargs: dict[str, Any] = {
             "model": model_name,
             "prompt": prompt,
-            "options": options,
+            "options": attempt_options,
         }
         if use_schema:
             generate_kwargs["format"] = JudgeOutput.model_json_schema()

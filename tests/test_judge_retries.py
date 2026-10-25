@@ -131,3 +131,69 @@ def test_judge_model_different_from_target_no_warning(minimal_suite: Path):
     )
     assert result.exit_code == 0
     assert "Judge model is the same as the target model; scores may be biased" not in result.output
+
+
+def test_judge_retry_options_temperature(monkeypatch, minimal_suite: Path):
+    """Call 1 has temperature 0.0, calls 2 and 3 have 0.3."""
+    mock_client = MagicMock()
+    mock_client.list.return_value = {"models": [{"name": "gemma:2b"}]}
+    mock_client.chat.return_value = {"message": {"content": '{"status": "ok"}'}}
+    mock_client.generate.return_value = {"response": "unparseable"}
+
+    monkeypatch.setattr("guard_rail_edge.main.verify_ollama_ready", lambda **kwargs: mock_client)
+
+    result = runner.invoke(
+        app,
+        ["run", "-s", str(minimal_suite), "--judge-retries", "2"],
+    )
+    assert result.exit_code == 2
+    assert mock_client.generate.call_count == 3
+
+    calls = mock_client.generate.call_args_list
+    assert calls[0].kwargs["options"]["temperature"] == 0.0
+    assert calls[1].kwargs["options"]["temperature"] == 0.3
+    assert calls[2].kwargs["options"]["temperature"] == 0.3
+
+
+def test_judge_retry_options_with_seed(monkeypatch, minimal_suite: Path):
+    """With --seed 42: seeds are 42, 43, 44 across the three attempts."""
+    mock_client = MagicMock()
+    mock_client.list.return_value = {"models": [{"name": "gemma:2b"}]}
+    mock_client.chat.return_value = {"message": {"content": '{"status": "ok"}'}}
+    mock_client.generate.return_value = {"response": "unparseable"}
+
+    monkeypatch.setattr("guard_rail_edge.main.verify_ollama_ready", lambda **kwargs: mock_client)
+
+    result = runner.invoke(
+        app,
+        ["run", "-s", str(minimal_suite), "--judge-retries", "2", "--seed", "42"],
+    )
+    assert result.exit_code == 2
+    assert mock_client.generate.call_count == 3
+
+    calls = mock_client.generate.call_args_list
+    assert calls[0].kwargs["options"]["seed"] == 42
+    assert calls[1].kwargs["options"]["seed"] == 43
+    assert calls[2].kwargs["options"]["seed"] == 44
+
+
+def test_judge_retry_options_without_seed(monkeypatch, minimal_suite: Path):
+    """Without --seed: no 'seed' key in options on any attempt."""
+    mock_client = MagicMock()
+    mock_client.list.return_value = {"models": [{"name": "gemma:2b"}]}
+    mock_client.chat.return_value = {"message": {"content": '{"status": "ok"}'}}
+    mock_client.generate.return_value = {"response": "unparseable"}
+
+    monkeypatch.setattr("guard_rail_edge.main.verify_ollama_ready", lambda **kwargs: mock_client)
+
+    result = runner.invoke(
+        app,
+        ["run", "-s", str(minimal_suite), "--judge-retries", "2"],
+    )
+    assert result.exit_code == 2
+    assert mock_client.generate.call_count == 3
+
+    calls = mock_client.generate.call_args_list
+    for call in calls:
+        assert "seed" not in call.kwargs["options"]
+
