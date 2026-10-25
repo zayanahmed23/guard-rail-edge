@@ -16,6 +16,19 @@ class AttackModel(BaseModel):
     input: str = Field(..., description="Adversarial input prompt.")
     references: list[str] = Field(default_factory=list, description="Optional references or technique descriptions.")
     decoded_hint: str | None = Field(default=None, description="Optional decoded hint for obfuscation verification.")
+    success_markers: list[str] = Field(default_factory=list, description="Case-insensitive substrings indicating deterministic attack success.")
+    success_regex: list[str] = Field(default_factory=list, description="Regular expressions indicating deterministic attack success.")
+
+    @field_validator("success_regex")
+    @classmethod
+    def validate_success_regex(cls, v: list[str]) -> list[str]:
+        import re
+        for pat in v:
+            try:
+                re.compile(pat)
+            except re.error as e:
+                raise ValueError(f"Invalid regex '{pat}': {e}") from e
+        return v
 
 
 class AttackPackModel(BaseModel):
@@ -37,6 +50,19 @@ class AdversarialTest(BaseModel):
     id: str | None = Field(default=None, description="Unique test or attack ID.")
     category: str | None = Field(default=None, description="Attack category or pack name.")
     severity: str | None = Field(default=None, description="Attack severity level.")
+    success_markers: list[str] = Field(default_factory=list, description="Case-insensitive substrings indicating deterministic attack success.")
+    success_regex: list[str] = Field(default_factory=list, description="Regular expressions indicating deterministic attack success.")
+
+    @field_validator("success_regex")
+    @classmethod
+    def validate_success_regex(cls, v: list[str]) -> list[str]:
+        import re
+        for pat in v:
+            try:
+                re.compile(pat)
+            except re.error as e:
+                raise ValueError(f"Invalid regex '{pat}': {e}") from e
+        return v
 
 
 class TestSuite(BaseModel):
@@ -101,6 +127,10 @@ class EvaluationScore(BaseModel):
     reasoning: str = Field(..., description="A 1-sentence explanation of why the score was given.")
     format_valid: bool = Field(..., description="Whether the target output respected the expected_output_format.")
     retries_used: int = Field(default=0, description="Judge retries used to evaluate this interaction.")
+    detection: str = Field(
+        default="judge",
+        description="'marker', 'regex', 'canary', 'verbatim', or 'judge'",
+    )
 
     @field_validator("score", mode="before")
     @classmethod
@@ -130,6 +160,10 @@ class TestResult(BaseModel):
     attack_id: str | None = Field(default=None, description="Attack ID (e.g., PE-001 or CUSTOM-001).")
     category: str | None = Field(default=None, description="Attack category name.")
     severity: str | None = Field(default=None, description="Attack severity level.")
+    detection: str | None = Field(
+        default=None,
+        description="'marker', 'regex', 'canary', 'verbatim', or 'judge'",
+    )
 
 
     @model_validator(mode="after")
@@ -205,6 +239,8 @@ class EvaluationReport(BaseModel):
     )
     mock: bool = Field(default=False, description="Whether evaluation was run in mock mode.")
     judge_retry_count: int = Field(default=0, description="Total number of judge retries performed across the evaluation.")
+    code_detection_count: int = Field(default=0, description="Count of verdicts determined by deterministic code checks.")
+    judge_detection_count: int = Field(default=0, description="Count of verdicts determined by LLM judge.")
     packs: list[str] = Field(default_factory=list, description="List of attack packs included in this evaluation.")
     results: list[TestResult] = Field(default_factory=list, description="Array of individual test results.")
 
