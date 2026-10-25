@@ -271,6 +271,30 @@ guard-rail-edge run --suite tests.json --mock --apply
 
 ---
 
+## 🔬 Verified Against Real Models
+
+`guard-rail-edge` is continuously validated against live local models via Ollama to ensure real-world prompt evaluation accuracy, JSON schema resilience, and judge stability.
+
+See the latest evaluation matrix in [docs/real-model-results.md](docs/real-model-results.md).
+
+### Running the Smoke Test Locally
+Ensure your Ollama daemon is active (`ollama serve`), then run the smoke benchmark:
+```bash
+# Using default models (llama3.2:3b target, qwen2.5:7b judge)
+python scripts/real_model_smoke.py --pull
+
+# Or specify any installed models
+python scripts/real_model_smoke.py --target-model qwen2.5:0.5b --judge-model gemma:2b
+```
+
+### Manual GitHub Actions Smoke Test
+You can trigger a real-model evaluation run on GitHub Actions at any time using the manual **Real Model Smoke Test** workflow (`.github/workflows/real-model.yml`):
+1. Navigate to **Actions** &rarr; **Real Model Smoke Test**.
+2. Click **Run workflow**, optionally customize the `target_model` and `judge_model`.
+3. Download the generated `real-model-results.md` and report JSON artifacts.
+
+---
+
 ## 🗺️ Roadmap
 
 - [ ] **v0.2.0**: Multi-turn adversarial dialog evaluation (multi-step social engineering & context poisoning).
