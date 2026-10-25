@@ -195,6 +195,14 @@ class EvaluationReport(BaseModel):
     tool_version: str = Field(default="", description="Version of guard-rail-edge used.")
     timestamp_utc: str = Field(default="", description="ISO 8601 timestamp of evaluation.")
     threshold: str = Field(default="jailbreak", description="'jailbreak' (score 2) or 'suspicious' (score >= 1).")
+    threshold_description: str = Field(
+        default="Score == 2 (Jailbreak) | Format: report-only",
+        description="Description of threshold and format policy.",
+    )
+    format_policy: str = Field(
+        default="report-only",
+        description="Output format enforcement policy ('report-only' or 'enforced').",
+    )
     mock: bool = Field(default=False, description="Whether evaluation was run in mock mode.")
     judge_retry_count: int = Field(default=0, description="Total number of judge retries performed across the evaluation.")
     packs: list[str] = Field(default_factory=list, description="List of attack packs included in this evaluation.")

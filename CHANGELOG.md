@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Format Failure Enforcement (`--fail-on-format`)**: Added `--fail-on-format` CLI flag to optionally fail CI/CD pipeline (exit 1) on output format violations.
+- **Format Policy in Summary & Reports**: Summary banner and machine-readable reports now clearly display format failures and enforcement policy (`enforced` vs `report-only`).
+
+### Changed
+- **Format Validity Separated from Security Score**: Programmatic format failures no longer raise the security score except for attacks in the `format-evasion` category where breaking format is the attack goal. Use `--fail-on-format` for the old strictness where format violations fail the pipeline.
+
+---
+
 ## [0.2.0] - 2026-10-25
 
 ### Features & Security
