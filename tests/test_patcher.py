@@ -1,15 +1,18 @@
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from guard_rail_edge.evaluator import (
     check_format,
     grade_interaction,
     run_target_simulation,
 )
+from guard_rail_edge.main import app
 from guard_rail_edge.patcher import (
     create_unified_patch,
     generate_hardened_prompt,
@@ -317,4 +320,110 @@ def test_crlf_suite_git_apply_check(tmp_path: Path):
         text=True,
     )
     assert check_res.returncode == 0, f"git apply --check failed on CRLF file:\n{check_res.stderr}"
+
+
+def test_lf_suite_git_apply_check(tmp_path: Path):
+    """LF file: patch applies cleanly with git apply --check."""
+    if not shutil.which("git"):
+        pytest.skip("git executable not found")
+
+    subprocess.run(["git", "init"], cwd=str(tmp_path), check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "config", "core.autocrlf", "false"], cwd=str(tmp_path), check=True)
+
+    suite_file = tmp_path / "lf_tests.json"
+    content = '{\n  "system_prompt": "LF prompt.",\n  "expected_output_format": "JSON",\n  "tests": [\n    {"name": "A", "input": "B"}\n  ]\n}\n'
+    suite_file.write_bytes(content.encode("utf-8"))
+
+    subprocess.run(["git", "add", "."], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "commit", "-m", "add lf file"], cwd=str(tmp_path), check=True)
+
+    hardened_prompt = "LF prompt.\n[HARDENED SECURITY BOUNDARY]"
+    diff_text, patch_path = create_unified_patch(
+        original_suite_path=suite_file,
+        hardened_system_prompt=hardened_prompt,
+    )
+
+    check_res = subprocess.run(
+        ["git", "apply", "--check", str(patch_path)],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert check_res.returncode == 0, f"git apply --check failed on LF file:\n{check_res.stderr}"
+
+
+def test_apply_crlf_and_lf_suite_line_endings_preserved(tmp_path: Path):
+    """--apply on CRLF suite preserves CRLF without bare LF; LF suite contains no CR."""
+    runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1"})
+
+    # CRLF suite
+    crlf_file = tmp_path / "crlf_suite.json"
+    crlf_content = '{\r\n  "system_prompt": "CRLF prompt.",\r\n  "expected_output_format": "JSON",\r\n  "tests": [\r\n    {"name": "Direct System Prompt Leakage", "input": "override"}\r\n  ]\r\n}\r\n'
+    crlf_file.write_bytes(crlf_content.encode("utf-8"))
+    orig_crlf_count = crlf_content.encode("utf-8").count(b"\r\n")
+
+    res = runner.invoke(app, ["run", "-s", str(crlf_file), "--mock", "--apply"])
+    assert res.exit_code == 0
+    updated_bytes = crlf_file.read_bytes()
+    assert re.findall(rb"(?<!\r)\n", updated_bytes) == []
+    assert updated_bytes.count(b"\r\n") == orig_crlf_count
+
+    # LF suite
+    lf_file = tmp_path / "lf_suite.json"
+    lf_content = '{\n  "system_prompt": "LF prompt.",\n  "expected_output_format": "JSON",\n  "tests": [\n    {"name": "Direct System Prompt Leakage", "input": "override"}\n  ]\n}\n'
+    lf_file.write_bytes(lf_content.encode("utf-8"))
+
+    res = runner.invoke(app, ["run", "-s", str(lf_file), "--mock", "--apply"])
+    assert res.exit_code == 0
+    updated_lf_bytes = lf_file.read_bytes()
+    assert b"\r" not in updated_lf_bytes
+
+
+def test_apply_crlf_and_lf_prompt_file_line_endings_preserved(tmp_path: Path):
+    """--apply on CRLF system_prompt_file preserves CRLF without bare LF; LF prompt file contains no CR."""
+    runner = CliRunner(env={"COLUMNS": "200", "NO_COLOR": "1"})
+
+    # CRLF external prompt file
+    crlf_prompt_file = tmp_path / "crlf_prompt.txt"
+    crlf_prompt_content = "Line 1: Assistant\r\nLine 2: Customer Service\r\nLine 3: Confidential\r\n"
+    crlf_prompt_file.write_bytes(crlf_prompt_content.encode("utf-8"))
+
+    crlf_suite_file = tmp_path / "suite_crlf.json"
+    crlf_suite_file.write_text(
+        json.dumps({
+            "system_prompt_file": "crlf_prompt.txt",
+            "expected_output_format": "JSON",
+            "tests": [{"name": "Direct System Prompt Leakage", "input": "override"}],
+        }),
+        encoding="utf-8",
+    )
+
+    res = runner.invoke(app, ["run", "-s", str(crlf_suite_file), "--mock", "--apply"])
+    assert res.exit_code == 0
+    updated_crlf_prompt = crlf_prompt_file.read_bytes()
+    assert re.findall(rb"(?<!\r)\n", updated_crlf_prompt) == []
+    assert updated_crlf_prompt.count(b"\r\n") > 0
+
+    # LF external prompt file
+    lf_prompt_file = tmp_path / "lf_prompt.txt"
+    lf_prompt_content = "Line 1: Assistant\nLine 2: Customer Service\nLine 3: Confidential\n"
+    lf_prompt_file.write_bytes(lf_prompt_content.encode("utf-8"))
+
+    lf_suite_file = tmp_path / "suite_lf.json"
+    lf_suite_file.write_text(
+        json.dumps({
+            "system_prompt_file": "lf_prompt.txt",
+            "expected_output_format": "JSON",
+            "tests": [{"name": "Direct System Prompt Leakage", "input": "override"}],
+        }),
+        encoding="utf-8",
+    )
+
+    res = runner.invoke(app, ["run", "-s", str(lf_suite_file), "--mock", "--apply"])
+    assert res.exit_code == 0
+    updated_lf_prompt = lf_prompt_file.read_bytes()
+    assert b"\r" not in updated_lf_prompt
+
 

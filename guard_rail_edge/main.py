@@ -3,6 +3,7 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Configure Windows consoles for safe UTF-8 output
 if sys.platform == "win32":
@@ -44,7 +45,9 @@ from guard_rail_edge.evaluator import (
 from guard_rail_edge.patcher import (
     create_unified_patch,
     generate_hardened_prompt,
+    read_text_exact,
     render_hardened_suite,
+    write_text_exact,
 )
 from guard_rail_edge.schemas import (
     AdversarialTest,
@@ -233,7 +236,7 @@ def init(
         sys.exit(1)
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(STARTER_SUITE_CONTENT, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_text_exact(output, json.dumps(STARTER_SUITE_CONTENT, indent=2, ensure_ascii=False) + "\n")
     console.print(f"[bold green][OK][/bold green] Created starter test suite at: [cyan bold]{output}[/cyan bold]")
     console.print("[dim]Run your first evaluation with: [bold white]guard-rail-edge run --mock --auto-patch[/bold white][/dim]")
 
@@ -245,7 +248,7 @@ def load_suite(suite_path: Path) -> tuple[TestSuite, Path]:
         sys.exit(2)
 
     try:
-        content = suite_path.read_text(encoding="utf-8")
+        content = read_text_exact(suite_path)
         raw_data = json.loads(content)
         test_suite = TestSuite(**raw_data)
     except json.JSONDecodeError as exc:
@@ -268,7 +271,8 @@ def load_suite(suite_path: Path) -> tuple[TestSuite, Path]:
         if not prompt_target_file.exists():
             console.print(f"[bold red]Error:[/bold red] System prompt file not found at: [yellow]{prompt_target_file}[/yellow]")
             sys.exit(2)
-        test_suite.system_prompt = prompt_target_file.read_text(encoding="utf-8")
+        raw_prompt = read_text_exact(prompt_target_file)
+        test_suite.system_prompt = raw_prompt.replace("\r\n", "\n")
 
     return test_suite, prompt_target_file
 
@@ -315,11 +319,23 @@ def evaluate_suite(
     mock: bool = False,
     repeats: int = 1,
     seed: int | None = None,
+    judge_retries: int = 2,
     progress_description: str = "Evaluating adversarial prompts...",
-) -> list[TestResult]:
+) -> tuple[list[TestResult], int]:
     """Evaluate a list of adversarial tests against a system prompt with repeat runs and worst-case aggregation."""
-    eval_kwargs = {"seed": seed} if seed is not None else {}
+    eval_kwargs: dict[str, Any] = {}
+    if seed is not None:
+        eval_kwargs["seed"] = seed
+    try:
+        import inspect
+        sig = inspect.signature(grade_interaction)
+        if "judge_retries" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+            eval_kwargs["judge_retries"] = judge_retries
+    except Exception:
+        eval_kwargs["judge_retries"] = judge_retries
+
     test_results: list[TestResult] = []
+    total_judge_retries = 0
 
     with Progress(
         SpinnerColumn(),
@@ -348,7 +364,7 @@ def evaluate_suite(
                         system_prompt=system_prompt,
                         adversarial_input=test.input,
                         mock_mode=mock,
-                        **eval_kwargs,
+                        **({"seed": seed} if seed is not None else {}),
                     )
 
                     format_valid = check_format(
@@ -369,6 +385,7 @@ def evaluate_suite(
                         canary=canary,
                         **eval_kwargs,
                     )
+                    total_judge_retries += verdict.retries_used
                     test_run_scores.append(verdict.score)
                     if worst_score is None or verdict.score > worst_score:
                         worst_score = verdict.score
@@ -408,7 +425,7 @@ def evaluate_suite(
 
             progress.advance(task)
 
-    return test_results
+    return test_results, total_judge_retries
 
 
 def summarize(
@@ -561,6 +578,7 @@ def write_report(
     fail_on_suspicious: bool,
     mock: bool = False,
     redact_responses: bool = False,
+    judge_retry_count: int = 0,
 ) -> EvaluationReport:
     """Generate and write machine-readable CI/CD report JSON artifact."""
     final_results = []
@@ -593,11 +611,11 @@ def write_report(
         timestamp_utc=datetime.now(UTC).isoformat(),
         threshold="suspicious" if fail_on_suspicious else "jailbreak",
         mock=mock,
+        judge_retry_count=judge_retry_count,
         results=final_results,
     )
 
-    report_json.parent.mkdir(parents=True, exist_ok=True)
-    report_json.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+    write_text_exact(report_json, report.model_dump_json(indent=2) + "\n")
     console.print(f"[bold green][OK][/bold green] CI/CD machine-readable report exported to: [cyan bold]{report_json}[/cyan bold]\n")
     return report
 
@@ -635,6 +653,12 @@ def run(
         120.0,
         "--timeout",
         help="Timeout in seconds for Ollama API requests.",
+    ),
+    judge_retries: int = typer.Option(
+        2,
+        "--judge-retries",
+        min=0,
+        help="Number of retries for the judge model on unparseable responses or errors.",
     ),
     repeats: int = typer.Option(
         1,
@@ -726,6 +750,12 @@ def run(
     actual_judge_model = judge_model if judge_model is not None else model
     actual_patch_model = patch_model if patch_model is not None else actual_judge_model
 
+    if actual_judge_model == model:
+        console.print(
+            "[bold yellow]Warning:[/bold yellow] Judge model is the same as the target model; scores may be biased. "
+            "Use --judge-model with a stronger model (e.g. qwen2.5:7b, llama3.1:8b)."
+        )
+
     console.print(f"[bold green][OK][/bold green] Ingested test suite from: [cyan]{suite}[/cyan]")
     console.print(f"[dim]Expected Format:[/dim] [bold]{test_suite.expected_output_format}[/bold]")
     console.print(f"[dim]Target Model:[/dim] [bold]{model}[/bold]")
@@ -743,7 +773,7 @@ def run(
     client = preflight(distinct_models, host=host, timeout=timeout, mock=mock)
 
     # 4. Evaluation
-    test_results = evaluate_suite(
+    test_results, total_judge_retries = evaluate_suite(
         client=client,
         model=model,
         judge_model=actual_judge_model,
@@ -755,6 +785,7 @@ def run(
         mock=mock,
         repeats=repeats,
         seed=seed,
+        judge_retries=judge_retries,
     )
 
     # 5. Summarize
@@ -791,7 +822,7 @@ def run(
         # 7. Verification Loop (--verify-patch)
         if verify_patch:
             console.print("[cyan]Running post-patch verification loop against hardened prompt...[/cyan]")
-            hardened_results = evaluate_suite(
+            hardened_results, verif_retries = evaluate_suite(
                 client=client,
                 model=model,
                 judge_model=actual_judge_model,
@@ -803,8 +834,10 @@ def run(
                 mock=mock,
                 repeats=repeats,
                 seed=seed,
+                judge_retries=judge_retries,
                 progress_description="Verifying hardened prompt against full test suite...",
             )
+            total_judge_retries += verif_retries
 
             orig_map = {r.test_name: r for r in test_results}
             verification_results = []
@@ -857,18 +890,23 @@ def run(
                 )
             if (not has_issues) or force_apply:
                 if prompt_target_file != suite:
-                    raw_orig = prompt_target_file.read_text(encoding="utf-8")
+                    raw_orig = read_text_exact(prompt_target_file)
                     newline = "\r\n" if "\r\n" in raw_orig else "\n"
-                    new_text = hardened_proposal.hardened_system_prompt
-                    if raw_orig.endswith("\n") or raw_orig.endswith("\r\n"):
-                        if not (new_text.endswith("\n") or new_text.endswith("\r\n")):
-                            new_text += newline
-                    prompt_target_file.write_text(new_text, encoding="utf-8")
+                    new_text = hardened_proposal.hardened_system_prompt.replace("\r\n", "\n")
+                    if newline == "\r\n":
+                        new_text = new_text.replace("\n", "\r\n")
+                    if raw_orig.endswith("\r\n"):
+                        if not new_text.endswith("\r\n"):
+                            new_text += "\r\n"
+                    elif raw_orig.endswith("\n"):
+                        if not new_text.endswith("\n"):
+                            new_text += "\n"
+                    write_text_exact(prompt_target_file, new_text)
                     console.print(f"[bold green][OK][/bold green] Applied hardened system prompt directly to prompt file: [cyan bold]{prompt_target_file}[/cyan bold]\n")
                 else:
-                    raw_suite = suite.read_text(encoding="utf-8")
+                    raw_suite = read_text_exact(suite)
                     new_suite_text = render_hardened_suite(raw_suite, hardened_proposal.hardened_system_prompt)
-                    suite.write_text(new_suite_text, encoding="utf-8")
+                    write_text_exact(suite, new_suite_text)
                     console.print(f"[bold green][OK][/bold green] Applied hardened system prompt directly to suite file: [cyan bold]{suite}[/cyan bold]\n")
                 if not has_issues:
                     applied_verified_prompt = True
@@ -904,6 +942,7 @@ def run(
             fail_on_suspicious=fail_on_suspicious,
             mock=mock,
             redact_responses=redact_responses,
+            judge_retry_count=total_judge_retries,
         )
 
     # 10. Exit code contract

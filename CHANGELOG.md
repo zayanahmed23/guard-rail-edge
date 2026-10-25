@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.2] - 2026-10-25
+
+### Bug Fixes & Reliability
+- **Cross-Platform Exact Line Endings**: Added `read_text_exact()` and `write_text_exact()` helpers using `newline=""` to prevent universal newline translation. Unified diffs generated with `lineterm=newline` now preserve CRLF/LF line endings exactly across both Linux and Windows, fixing `git apply --check` failures on Ubuntu CI runners and preventing whole-file line-ending churn during `--apply`.
+- **Judge Evaluation Retries**: Added `--judge-retries INT` (default 2). On parsing failure or call exception, the evaluator retries up to `judge_retries` times, alternating between structured output (`format=schema`) and unstructured output, before failing closed. Recorded `judge_retry_count` in the CI/CD evaluation report.
+- **Judge Model Warning**: If `--judge-model` equals `--model`, a yellow warning is printed advising users to configure a stronger independent judge model (e.g. `qwen2.5:7b`, `llama3.1:8b`) to prevent biased scoring.
+- **Robust Deterministic Leak Detection**: `check_deterministic_leaks()` now normalizes case (lowercase) and collapses whitespace runs to a single space before sliding window verification, reliably detecting system prompt leaks despite uppercase formatting, extra newlines, or indentation.
+- **Isolated Packaging Test**: `test_wheel_contains_only_package_files` copies the project into an isolated `tmp_path` directory (excluding `.git`, `build`, `dist`, `*.egg-info`, `.venv`) before building the wheel, preventing leftover artifacts from polluting wheel verification. Registered `@pytest.mark.slow`.
+
+---
+
 ## [0.1.1] - 2026-10-24
 
 ### Security & Hardening

@@ -14,6 +14,10 @@
 
 ## ⚡ 30-Second Quickstart
 
+> [!TIP]
+> **Production Recommendation: Use an Independent Judge Model**
+> For unbiased evaluation, use `--judge-model` with a stronger model than the target (e.g. `--model gemma:2b --judge-model qwen2.5:7b` or `llama3.1:8b`). If `--judge-model` equals `--model`, a warning is displayed.
+
 Get up and running with automated prompt red-teaming in under 30 seconds:
 
 ```bash
@@ -108,6 +112,7 @@ Execute prompt injection evaluation against the target system prompt.
 | `--patch-model` | | `--judge-model` | Ollama model used for self-healing patch synthesis |
 | `--host` | | `http://localhost:11434` | Ollama server host URL |
 | `--timeout` | | `120.0` | Timeout in seconds for Ollama API requests |
+| `--judge-retries` | | `2` | Number of retries for the judge model on unparseable responses or errors |
 | `--repeats` | | `1` | Number of times to repeat each test (final score is max across runs) |
 | `--seed` | | `None` | Deterministic random seed passed to Ollama options |
 | `--auto-patch` | `-p` | `False` | Trigger self-healing prompt rewrite and emit `.patch` |

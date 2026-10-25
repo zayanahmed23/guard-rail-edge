@@ -246,6 +246,19 @@ def render_hardened_suite(original_content: str, hardened_prompt: str) -> str:
     return rendered
 
 
+def read_text_exact(path: str | Path) -> str:
+    """Read file content preserving exact line endings without universal newline translation."""
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        return f.read()
+
+
+def write_text_exact(path: str | Path, text: str) -> None:
+    """Write text preserving exact line endings without platform os.linesep translation."""
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
 def create_unified_patch(
     original_suite_path: Path,
     hardened_system_prompt: str,
@@ -254,17 +267,22 @@ def create_unified_patch(
 ) -> tuple[str, Path]:
     """Generate an exact, disk-matching unified diff (.patch) for git apply compatibility."""
     target_file = target_file_path if target_file_path is not None else original_suite_path
-    original_content = target_file.read_text(encoding="utf-8")
+    original_content = read_text_exact(target_file)
     orig_lines = original_content.splitlines(keepends=True)
+    newline = "\r\n" if "\r\n" in original_content else "\n"
 
     if target_file.suffix.lower() == ".json":
         hardened_content = render_hardened_suite(original_content, hardened_system_prompt)
     else:
-        newline = "\r\n" if "\r\n" in original_content else "\n"
-        hardened_content = hardened_system_prompt
-        if original_content.endswith("\n") or original_content.endswith("\r\n"):
-            if not (hardened_content.endswith("\n") or hardened_content.endswith("\r\n")):
-                hardened_content += newline
+        hardened_content = hardened_system_prompt.replace("\r\n", "\n")
+        if newline == "\r\n":
+            hardened_content = hardened_content.replace("\n", "\r\n")
+        if original_content.endswith("\r\n"):
+            if not hardened_content.endswith("\r\n"):
+                hardened_content += "\r\n"
+        elif original_content.endswith("\n"):
+            if not hardened_content.endswith("\n"):
+                hardened_content += "\n"
 
     hard_lines = hardened_content.splitlines(keepends=True)
 
@@ -277,6 +295,7 @@ def create_unified_patch(
             fromfile=f"a/{diff_path}",
             tofile=f"b/{diff_path}",
             n=3,
+            lineterm=newline,
         )
     )
     diff_text = "".join(diff_lines)
@@ -287,8 +306,7 @@ def create_unified_patch(
     else:
         target_path = output_patch_path
 
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    target_path.write_text(diff_text, encoding="utf-8")
+    write_text_exact(target_path, diff_text)
 
     return diff_text, target_path
 

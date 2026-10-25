@@ -3,6 +3,7 @@
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -38,22 +39,52 @@ def test_python_module_version_flag():
     assert __version__ in result.stdout
 
 
-def test_wheel_contains_only_package_files(tmp_path):
-    """Build a wheel and assert every file (excluding *.dist-info/) starts with 'guard_rail_edge/'."""
+@pytest.mark.slow
+def test_wheel_contains_only_package_files(tmp_path: Path):
+    """Build a wheel in an isolated directory and assert every file (excluding *.dist-info/) starts with 'guard_rail_edge/'."""
     import importlib.util
+    import shutil
+
     if not importlib.util.find_spec("build"):
         pytest.skip("build module not installed in test environment")
 
-    # Build wheel into tmp_path
+    repo_root = Path(__file__).parent.parent
+    src_dir = tmp_path / "src"
+    out_dir = tmp_path / "dist"
+
+    def ignore_patterns(path: str, names: list[str]) -> set[str]:
+        ignored = set()
+        for name in names:
+            if name in (
+                ".git",
+                "build",
+                "dist",
+                ".venv",
+                "venv",
+                "env",
+                "__pycache__",
+                ".pytest_cache",
+                ".mypy_cache",
+                ".ruff_cache",
+            ):
+                ignored.add(name)
+            elif name.endswith(".egg-info"):
+                ignored.add(name)
+        return ignored
+
+    shutil.copytree(repo_root, src_dir, ignore=ignore_patterns)
+
+    # Build wheel into out_dir from clean isolated source directory
     res = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--outdir", str(tmp_path)],
+        [sys.executable, "-m", "build", "--wheel", "--outdir", str(out_dir)],
+        cwd=str(src_dir),
         capture_output=True,
         text=True,
     )
     if res.returncode != 0:
         pytest.fail(f"Failed to build wheel:\nStdout: {res.stdout}\nStderr: {res.stderr}")
 
-    wheel_files = list(tmp_path.glob("*.whl"))
+    wheel_files = list(out_dir.glob("*.whl"))
     assert len(wheel_files) == 1, f"Expected 1 wheel, found: {wheel_files}"
 
     with zipfile.ZipFile(wheel_files[0], "r") as z:

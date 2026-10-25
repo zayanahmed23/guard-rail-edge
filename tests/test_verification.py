@@ -119,7 +119,7 @@ def test_verification_regressed_blocks_apply(tmp_path: Path, monkeypatch):
             return "Attack B safe"
         return "Safe"
 
-    def fake_judge(client, model_name, system_prompt, expected_output_format, adversarial_input, target_response, programmatic_format_ok, mock_mode=False, canary=None):
+    def fake_judge(client, model_name, system_prompt, expected_output_format, adversarial_input, target_response, programmatic_format_ok, mock_mode=False, canary=None, **kwargs):
         if "breached" in target_response:
             return EvaluationScore(score=2, reasoning="Jailbroken response", format_valid=True)
         return EvaluationScore(score=0, reasoning="Safe response", format_valid=True)
@@ -174,7 +174,7 @@ def test_verification_fixes_all_allows_apply(tmp_path: Path, monkeypatch):
             return "Safe hardened output"
         return "Breached original output"
 
-    def fake_judge(client, model_name, system_prompt, expected_output_format, adversarial_input, target_response, programmatic_format_ok, mock_mode=False, canary=None):
+    def fake_judge(client, model_name, system_prompt, expected_output_format, adversarial_input, target_response, programmatic_format_ok, mock_mode=False, canary=None, **kwargs):
         if "Breached" in target_response:
             return EvaluationScore(score=2, reasoning="Jailbreak detected", format_valid=True)
         return EvaluationScore(score=0, reasoning="Safe response", format_valid=True)
