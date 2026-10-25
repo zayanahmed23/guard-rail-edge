@@ -8,10 +8,11 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from guard_rail_edge.backends.base import ChatBackend
 from guard_rail_edge.evaluator import EvaluationError, EvaluatorConnectionError
 
 
-class OpenAIBackend:
+class OpenAIBackend(ChatBackend):
     """Chat backend using OpenAI-compatible HTTP endpoints (OpenAI, vLLM, OpenRouter, etc.)."""
 
     def __init__(

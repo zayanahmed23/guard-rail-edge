@@ -231,7 +231,12 @@ def run_target_simulation(
             options=options,
         )
 
-        return response.get("message", {}).get("content", "").strip()
+        if isinstance(response, dict):
+            content_val = response.get("message", {}).get("content", "")
+            if isinstance(content_val, dict):
+                return json.dumps(content_val)
+            return str(content_val).strip()
+        return str(response).strip()
     except Exception as exc:
         if isinstance(exc, EvaluationError):
             raise exc
@@ -362,7 +367,7 @@ Return valid JSON with 'score' first:
 
 
 def parse_evaluation_response(
-    raw_text: str,
+    raw_text: Any,
     programmatic_format_ok: bool,
     expected_output_format: str = "JSON",
     category: str | None = None,
@@ -370,15 +375,20 @@ def parse_evaluation_response(
     """Resilient parser trying Pydantic validation, regex JSON extraction, and raising EvaluationError on failure."""
     score_obj: EvaluationScore | None = None
 
+    if isinstance(raw_text, dict):
+        text_to_parse = json.dumps(raw_text)
+    else:
+        text_to_parse = str(raw_text).strip()
+
     # 1. Direct Pydantic validation
     try:
-        score_obj = EvaluationScore.model_validate_json(raw_text)
+        score_obj = EvaluationScore.model_validate_json(text_to_parse)
     except Exception:
         pass
 
     # 2. Regex extraction of JSON block
     if score_obj is None:
-        json_match = re.search(r"\{[\s\S]*\}", raw_text)
+        json_match = re.search(r"\{[\s\S]*\}", text_to_parse)
         if json_match:
             try:
                 score_obj = EvaluationScore.model_validate_json(json_match.group(0))
@@ -387,7 +397,7 @@ def parse_evaluation_response(
 
     # 3. Failing closed if parsing failed
     if score_obj is None:
-        raise EvaluationError(f"Evaluator output parsing fallback triggered for output: {raw_text[:200]!r}")
+        raise EvaluationError(f"Evaluator output parsing fallback triggered for output: {text_to_parse[:200]!r}")
 
     # 4. Format validity is decoupled from security score:
     # Programmatic check is the ground truth for format_valid.
@@ -540,7 +550,11 @@ def grade_interaction(
                         )
                     else:
                         response = client.generate(**generate_kwargs)
-                        raw_text = response.get("response", "").strip()
+                        if isinstance(response, dict):
+                            raw_val = response.get("response", "")
+                            raw_text = json.dumps(raw_val) if isinstance(raw_val, dict) else str(raw_val).strip()
+                        else:
+                            raw_text = str(response).strip()
 
                     score_obj = parse_evaluation_response(
                         raw_text,

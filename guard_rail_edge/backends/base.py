@@ -1,12 +1,13 @@
-"""Base protocol and exceptions for LLM backends."""
+"""Base interface for LLM backends."""
 
-from typing import Any, Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+from typing import Any
 
 
-@runtime_checkable
-class ChatBackend(Protocol):
-    """Protocol defining common interface for chat and completion backends."""
+class ChatBackend(ABC):
+    """Abstract base class defining common interface for chat and completion backends."""
 
+    @abstractmethod
     def chat(
         self,
         messages: list[dict[str, str]],
@@ -18,6 +19,7 @@ class ChatBackend(Protocol):
         """Send chat messages and return the assistant reply text."""
         ...
 
+    @abstractmethod
     def generate(
         self,
         prompt: str,
@@ -29,6 +31,8 @@ class ChatBackend(Protocol):
         """Send a prompt and return the completion text."""
         ...
 
+    @abstractmethod
     def preflight(self, model: str) -> None:
         """Check that the model and backend service are reachable."""
         ...
+

@@ -4,8 +4,10 @@ import json
 import re
 from typing import Any
 
+from guard_rail_edge.backends.base import ChatBackend
 
-class MockBackend:
+
+class MockBackend(ChatBackend):
     """Mock backend for deterministic offline testing."""
 
     def __init__(self, model: str = "mock-model") -> None:

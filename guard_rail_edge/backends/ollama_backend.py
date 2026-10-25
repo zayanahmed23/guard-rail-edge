@@ -4,10 +4,11 @@ from typing import Any
 
 import ollama
 
+from guard_rail_edge.backends.base import ChatBackend
 from guard_rail_edge.evaluator import verify_ollama_ready
 
 
-class OllamaBackend:
+class OllamaBackend(ChatBackend):
     """Chat backend using local Ollama daemon."""
 
     def __init__(
