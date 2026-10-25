@@ -90,4 +90,8 @@ ci_report*.json
 # Autonomous Run Reports
 RUN_REPORT.md
 
+# Scratch directories
+scratch/
+
+
 

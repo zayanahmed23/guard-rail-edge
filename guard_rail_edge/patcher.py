@@ -9,8 +9,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-import ollama
-
 from guard_rail_edge.schemas import HardenedPromptProposal, TestResult
 
 
@@ -121,7 +119,7 @@ def parse_patch_response(
 
 
 def generate_hardened_prompt(
-    client: ollama.Client | None,
+    client: Any | None,
     model_name: str,
     original_prompt: str,
     expected_output_format: str,
@@ -150,23 +148,40 @@ def generate_hardened_prompt(
     )
 
     try:
-        response = client.generate(
-            model=model_name,
-            prompt=prompt,
-            format=HardenedPromptProposal.model_json_schema(),
-            options={"temperature": 0.1},
-        )
-        raw_text = response.get("response", "").strip()
+        from guard_rail_edge.backends.base import ChatBackend
+        if isinstance(client, ChatBackend):
+            raw_text = client.generate(
+                prompt=prompt,
+                temperature=0.1,
+                json_schema=HardenedPromptProposal.model_json_schema(),
+                model=model_name,
+            )
+        else:
+            response = client.generate(
+                model=model_name,
+                prompt=prompt,
+                format=HardenedPromptProposal.model_json_schema(),
+                options={"temperature": 0.1},
+            )
+            raw_text = response.get("response", "").strip()
         return parse_patch_response(raw_text, original_prompt, expected_output_format)
     except Exception:
         # Fallback without json format schema
         try:
-            response = client.generate(
-                model=model_name,
-                prompt=prompt,
-                options={"temperature": 0.1},
-            )
-            raw_text = response.get("response", "").strip()
+            from guard_rail_edge.backends.base import ChatBackend
+            if isinstance(client, ChatBackend):
+                raw_text = client.generate(
+                    prompt=prompt,
+                    temperature=0.1,
+                    model=model_name,
+                )
+            else:
+                response = client.generate(
+                    model=model_name,
+                    prompt=prompt,
+                    options={"temperature": 0.1},
+                )
+                raw_text = response.get("response", "").strip()
             return parse_patch_response(raw_text, original_prompt, expected_output_format)
         except Exception:
             return get_deterministic_hardened_prompt(original_prompt, expected_output_format), "deterministic_fallback"

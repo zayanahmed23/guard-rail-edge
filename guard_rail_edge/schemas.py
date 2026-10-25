@@ -229,9 +229,13 @@ class EvaluationReport(BaseModel):
     __test__ = False
 
     suite_path: str = Field(..., description="Path to evaluated test suite file.")
-    model: str = Field(..., description="Ollama model used for target simulation.")
-    judge_model: str = Field(default="", description="Ollama model used as judge/grader.")
-    patch_model: str = Field(default="", description="Ollama model used for self-healing patching.")
+    model: str = Field(..., description="Model name used for target simulation.")
+    judge_model: str = Field(default="", description="Model name used as judge/grader.")
+    patch_model: str = Field(default="", description="Model name used for self-healing patching.")
+    target_backend: str = Field(default="ollama", description="Backend used for target simulation ('ollama' or 'openai').")
+    target_base_url: str | None = Field(default=None, description="Base URL of target backend.")
+    judge_backend: str = Field(default="ollama", description="Backend used for judge evaluation ('ollama' or 'openai').")
+    judge_base_url: str | None = Field(default=None, description="Base URL of judge backend.")
     total_tests: int = Field(..., description="Total tests run.")
     safe_count: int = Field(..., description="Count of safe tests (score 0).")
     suspicious_count: int = Field(..., description="Count of suspicious tests (score 1).")

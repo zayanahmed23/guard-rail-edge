@@ -51,7 +51,7 @@ guard-rail-edge run --suite tests.json --model gemma:2b --auto-patch
 
 **guard-rail-edge** runs automated adversarial prompt injection and jailbreak evaluations against LLM system prompts using local edge models (such as `gemma:2b`, `phi-3`, or `llama3.2`) powered by [Ollama](https://ollama.ai/).
 
-- 🔒 **Zero API Costs & Total Privacy**: Evaluates prompts completely on-premise or on CI runners without sending intellectual property or proprietary prompts to external APIs.
+- 🔒 **Zero API Costs & Total Privacy**: Evaluates prompts completely on-premise or on CI runners without sending intellectual property to third parties when using the default local Ollama engine (note: when using `--target-backend openai` or `--judge-backend openai`, requests are sent to that configured endpoint).
 - ⚖️ **Strict 0–2 Security Rubric**: Scores persona invariance, confidential data protection, and prompt isolation.
 - 📐 **Programmatic Format Verification**: Enforces expected output contracts (e.g. valid JSON) before and during grading.
 - 🩹 **Automated Self-Healing (`--auto-patch`)**: Synthesizes hardened system prompts and generates standard, mathematically valid unified `.patch` files ready for `git apply`.
@@ -388,6 +388,87 @@ You can trigger a real-model evaluation run on GitHub Actions at any time using 
 1. Navigate to **Actions** &rarr; **Real Model Smoke Test**.
 2. Click **Run workflow**, optionally customize the `target_model` and `judge_model`.
 3. Download the generated `real-model-results.md` and report JSON artifacts.
+
+---
+
+## 🌐 OpenAI-Compatible Backend (Hosted & Self-Hosted Endpoints)
+
+While `guard-rail-edge` defaults to local inference via [Ollama](https://ollama.ai/) for complete privacy and zero API costs, you can also target or judge evaluations against any **OpenAI-compatible HTTP endpoint** (including [vLLM](https://github.com/vllm-project/vllm), [Ollama OpenAI compatibility layer](https://github.com/ollama/ollama/blob/main/docs/openai.md), [Groq](https://groq.com/), [Together AI](https://www.together.ai/), [OpenRouter](https://openrouter.ai/), or OpenAI directly) without installing heavy external SDKs.
+
+> [!CAUTION]
+> **Privacy Boundary & Intellectual Property Notice**  
+> When you evaluate prompts using the default `ollama` backend, prompts and responses **never leave your local machine**.  
+> When you configure `--target-backend openai` or `--judge-backend openai` pointing to external cloud providers (such as Groq, Together, OpenRouter, or OpenAI), **your test inputs and system prompts are transmitted over the network to that third-party provider**. Ensure you have proper data handling authorization before testing sensitive proprietary prompts against public APIs.
+
+### Backend CLI Options
+
+| Flag | Description | Default |
+|---|---|---|
+| `--target-backend [ollama\|openai]` | Inference backend for target model simulation | `ollama` |
+| `--target-base-url <URL>` | Base URL for target backend | `http://localhost:11434` (ollama) / `https://api.openai.com/v1` (openai) |
+| `--judge-backend [ollama\|openai]` | Inference backend for evaluator judge | `ollama` |
+| `--judge-base-url <URL>` | Base URL for judge backend | `http://localhost:11434` (ollama) / `https://api.openai.com/v1` (openai) |
+| `--api-key-env <VAR>` | Name of environment variable holding API key | `OPENAI_API_KEY` |
+
+### Provider Examples
+
+#### 1. Groq
+```bash
+export GROQ_API_KEY="gsk_..."
+guard-rail-edge run \
+  --suite examples/tests.json \
+  --target-backend openai \
+  --target-base-url https://api.groq.com/openai/v1 \
+  --model llama-3.3-70b-versatile \
+  --judge-backend openai \
+  --judge-base-url https://api.groq.com/openai/v1 \
+  --judge-model llama-3.3-70b-versatile \
+  --api-key-env GROQ_API_KEY
+```
+
+#### 2. Together AI
+```bash
+export TOGETHER_API_KEY="tog_..."
+guard-rail-edge run \
+  --suite examples/tests.json \
+  --target-backend openai \
+  --target-base-url https://api.together.xyz/v1 \
+  --model meta-llama/Llama-3-70b-chat-hf \
+  --api-key-env TOGETHER_API_KEY
+```
+
+#### 3. OpenRouter
+```bash
+export OPENROUTER_API_KEY="sk-or-..."
+guard-rail-edge run \
+  --suite examples/tests.json \
+  --judge-backend openai \
+  --judge-base-url https://openrouter.ai/api/v1 \
+  --judge-model meta-llama/llama-3.1-70b-instruct \
+  --api-key-env OPENROUTER_API_KEY
+```
+
+#### 4. OpenAI
+```bash
+export OPENAI_API_KEY="sk-proj-..."
+guard-rail-edge run \
+  --suite examples/tests.json \
+  --target-backend openai \
+  --model gpt-4o-mini \
+  --judge-backend openai \
+  --judge-model gpt-4o \
+  --api-key-env OPENAI_API_KEY
+```
+
+#### 5. Local vLLM Server (Zero Cost, High Throughput)
+```bash
+# vLLM running locally at port 8000 (no API key needed)
+guard-rail-edge run \
+  --suite examples/tests.json \
+  --target-backend openai \
+  --target-base-url http://localhost:8000/v1 \
+  --model Qwen/Qwen2.5-7B-Instruct
+```
 
 ---
 

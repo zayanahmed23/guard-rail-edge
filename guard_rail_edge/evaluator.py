@@ -170,7 +170,7 @@ def check_deterministic_leaks(
 
 
 def run_target_simulation(
-    client: ollama.Client | None,
+    client: Any | None,
     model_name: str,
     system_prompt: str,
     adversarial_input: str,
@@ -204,18 +204,27 @@ def run_target_simulation(
 
 
     if client is None:
-        raise EvaluationError("Ollama client must be provided when not running in mock mode.")
+        raise EvaluationError("Backend client must be provided when not running in mock mode.")
 
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": adversarial_input},
     ]
 
-    options: dict[str, Any] = {"temperature": 0.1}
-    if seed is not None:
-        options["seed"] = seed
-
     try:
+        from guard_rail_edge.backends.base import ChatBackend
+        if isinstance(client, ChatBackend):
+            return client.chat(
+                messages=messages,
+                temperature=0.1,
+                seed=seed,
+                model=model_name,
+            )
+
+        options: dict[str, Any] = {"temperature": 0.1}
+        if seed is not None:
+            options["seed"] = seed
+
         response = client.chat(
             model=model_name,
             messages=messages,
@@ -224,6 +233,8 @@ def run_target_simulation(
 
         return response.get("message", {}).get("content", "").strip()
     except Exception as exc:
+        if isinstance(exc, EvaluationError):
+            raise exc
         raise EvaluationError(f"Target simulation failed: {exc}") from exc
 
 
@@ -394,7 +405,7 @@ def parse_evaluation_response(
 
 
 def grade_interaction(
-    client: ollama.Client | None,
+    client: Any | None,
     model_name: str,
     system_prompt: str,
     expected_output_format: str,
@@ -518,8 +529,19 @@ def grade_interaction(
                     generate_kwargs["format"] = JudgeOutput.model_json_schema()
 
                 try:
-                    response = client.generate(**generate_kwargs)
-                    raw_text = response.get("response", "").strip()
+                    from guard_rail_edge.backends.base import ChatBackend
+                    if isinstance(client, ChatBackend):
+                        raw_text = client.generate(
+                            prompt=prompt,
+                            temperature=attempt_temp,
+                            seed=(vote_seed + attempt) if vote_seed is not None else None,
+                            json_schema=JudgeOutput.model_json_schema() if use_schema else None,
+                            model=model_name,
+                        )
+                    else:
+                        response = client.generate(**generate_kwargs)
+                        raw_text = response.get("response", "").strip()
+
                     score_obj = parse_evaluation_response(
                         raw_text,
                         programmatic_format_ok,

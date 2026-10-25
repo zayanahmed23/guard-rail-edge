@@ -337,12 +337,12 @@ def preflight(
 
 
 def evaluate_suite(
-    client: ollama.Client | None,
-    model: str,
-    judge_model: str,
-    system_prompt: str,
-    expected_output_format: str,
-    tests: list[AdversarialTest],
+    client: Any | None = None,
+    model: str = "gemma:2b",
+    judge_model: str = "gemma:2b",
+    system_prompt: str = "",
+    expected_output_format: str = "JSON",
+    tests: list[AdversarialTest] | None = None,
     canary: str | None = None,
     required_json_keys: list[str] | None = None,
     mock: bool = False,
@@ -352,8 +352,14 @@ def evaluate_suite(
     judge_always: bool = False,
     judge_votes: int = 1,
     progress_description: str = "Evaluating adversarial prompts...",
+    target_client: Any | None = None,
+    judge_client: Any | None = None,
 ) -> tuple[list[TestResult], int]:
     """Evaluate a list of adversarial tests against a system prompt with repeat runs and worst-case aggregation."""
+    tests_list = tests or []
+    t_client = target_client if target_client is not None else client
+    j_client = judge_client if judge_client is not None else client
+
     eval_kwargs: dict[str, Any] = {}
     if seed is not None:
         eval_kwargs["seed"] = seed
@@ -378,10 +384,10 @@ def evaluate_suite(
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(f"[cyan]{progress_description}", total=len(tests))
+        task = progress.add_task(f"[cyan]{progress_description}", total=len(tests_list))
 
-        for idx, test in enumerate(tests, start=1):
-            progress.update(task, description=f"[cyan]Evaluating ({idx}/{len(tests)}): {test.name}...")
+        for idx, test in enumerate(tests_list, start=1):
+            progress.update(task, description=f"[cyan]Evaluating ({idx}/{len(tests_list)}): {test.name}...")
 
             test_run_scores: list[int | None] = []
             worst_score: int | None = None
@@ -394,7 +400,7 @@ def evaluate_suite(
             for _ in range(repeats):
                 try:
                     target_response = run_target_simulation(
-                        client=client,
+                        client=t_client,
                         model_name=model,
                         system_prompt=system_prompt,
                         adversarial_input=test.input,
@@ -409,7 +415,7 @@ def evaluate_suite(
                     )
 
                     verdict = grade_interaction(
-                        client=client,
+                        client=j_client,
                         model_name=judge_model,
                         system_prompt=system_prompt,
                         expected_output_format=expected_output_format,
@@ -572,7 +578,7 @@ def summarize(
 
 
 def heal(
-    client: ollama.Client | None,
+    client: Any | None,
     patch_model: str,
     suite: Path,
     prompt_target_file: Path,
@@ -660,6 +666,10 @@ def write_report(
     redact_responses: bool = False,
     judge_retry_count: int = 0,
     packs: list[str] | None = None,
+    target_backend: str = "ollama",
+    target_base_url: str | None = None,
+    judge_backend: str = "ollama",
+    judge_base_url: str | None = None,
 ) -> EvaluationReport:
     """Generate and write machine-readable CI/CD report JSON artifact."""
     final_results = []
@@ -684,6 +694,10 @@ def write_report(
         model=model,
         judge_model=judge_model,
         patch_model=patch_model,
+        target_backend=target_backend,
+        target_base_url=target_base_url,
+        judge_backend=judge_backend,
+        judge_base_url=judge_base_url,
         total_tests=len(test_results),
         safe_count=safe_count,
         suspicious_count=suspicious_count,
@@ -737,6 +751,31 @@ def run(
         None,
         "--patch-model",
         help="Ollama model to use for self-healing patch synthesis (defaults to --judge-model).",
+    ),
+    target_backend: str = typer.Option(
+        "ollama",
+        "--target-backend",
+        help="Target simulation backend: 'ollama' or 'openai'.",
+    ),
+    target_base_url: str | None = typer.Option(
+        None,
+        "--target-base-url",
+        help="Base URL for target backend (defaults to --host for ollama, or https://api.openai.com/v1 for openai).",
+    ),
+    judge_backend: str = typer.Option(
+        "ollama",
+        "--judge-backend",
+        help="Evaluator judge backend: 'ollama' or 'openai'.",
+    ),
+    judge_base_url: str | None = typer.Option(
+        None,
+        "--judge-base-url",
+        help="Base URL for judge backend (defaults to --host for ollama, or https://api.openai.com/v1 for openai).",
+    ),
+    api_key_env: str = typer.Option(
+        "OPENAI_API_KEY",
+        "--api-key-env",
+        help="Environment variable name containing API key for OpenAI-compatible backend.",
     ),
     host: str = typer.Option(
         "http://localhost:11434",
@@ -958,15 +997,85 @@ def run(
     console.print(f"[dim]Fail-on-Suspicious:[/dim] [bold]{fail_on_suspicious}[/bold]\n")
 
     # 3. Pre-flight health check
-    distinct_models: list[str] = []
-    for m in [model, actual_judge_model, actual_patch_model]:
-        if m not in distinct_models:
-            distinct_models.append(m)
-    client = preflight(distinct_models, host=host, timeout=timeout, mock=mock)
+    target_client: Any = None
+    judge_client: Any = None
+    patch_client: Any = None
+
+    if target_backend == "ollama" and judge_backend == "ollama":
+        distinct_models: list[str] = []
+        for m in [model, actual_judge_model, actual_patch_model]:
+            if m not in distinct_models:
+                distinct_models.append(m)
+        client = preflight(distinct_models, host=host, timeout=timeout, mock=mock)
+        target_client = client
+        judge_client = client
+        patch_client = client
+    else:
+        from guard_rail_edge.backends import get_backend
+        if target_backend == "openai":
+            target_client = get_backend(
+                backend_type="openai",
+                model=model,
+                base_url=target_base_url,
+                timeout=timeout,
+                api_key_env=api_key_env,
+                mock=mock,
+            )
+            if not mock:
+                try:
+                    target_client.preflight(model)
+                except EvaluatorConnectionError as exc:
+                    console.print(
+                        Panel(
+                            str(exc),
+                            title=f"[bold red]Target Backend Pre-Flight Check Failed ({model})[/bold red]",
+                            border_style="red",
+                        )
+                    )
+                    sys.exit(2)
+        else:
+            target_client = preflight([model], host=host, timeout=timeout, mock=mock)
+
+        if judge_backend == "openai":
+            judge_client = get_backend(
+                backend_type="openai",
+                model=actual_judge_model,
+                base_url=judge_base_url,
+                timeout=timeout,
+                api_key_env=api_key_env,
+                mock=mock,
+            )
+            patch_client = get_backend(
+                backend_type="openai",
+                model=actual_patch_model,
+                base_url=judge_base_url,
+                timeout=timeout,
+                api_key_env=api_key_env,
+                mock=mock,
+            )
+            if not mock:
+                try:
+                    judge_client.preflight(actual_judge_model)
+                except EvaluatorConnectionError as exc:
+                    console.print(
+                        Panel(
+                            str(exc),
+                            title=f"[bold red]Judge Backend Pre-Flight Check Failed ({actual_judge_model})[/bold red]",
+                            border_style="red",
+                        )
+                    )
+                    sys.exit(2)
+        else:
+            j_models = [actual_judge_model]
+            if actual_patch_model not in j_models:
+                j_models.append(actual_patch_model)
+            judge_client = preflight(j_models, host=host, timeout=timeout, mock=mock)
+            patch_client = judge_client
 
     # 4. Evaluation
     test_results, total_judge_retries = evaluate_suite(
-        client=client,
+        target_client=target_client,
+        judge_client=judge_client,
         model=model,
         judge_model=actual_judge_model,
         system_prompt=test_suite.system_prompt or "",
@@ -1007,7 +1116,7 @@ def run(
     # 6. Heal & Verification
     if not pipeline_passed and (auto_patch or apply) and failed_tests:
         hardened_proposal, hardening_source, diff_text, saved_patch_path = heal(
-            client=client,
+            client=patch_client,
             patch_model=actual_patch_model,
             suite=suite,
             prompt_target_file=prompt_target_file,
@@ -1022,7 +1131,8 @@ def run(
         if verify_patch:
             console.print("[cyan]Running post-patch verification loop against hardened prompt...[/cyan]")
             hardened_results, verif_retries = evaluate_suite(
-                client=client,
+                target_client=target_client,
+                judge_client=judge_client,
                 model=model,
                 judge_model=actual_judge_model,
                 system_prompt=hardened_proposal.hardened_system_prompt,
@@ -1145,6 +1255,10 @@ def run(
             redact_responses=redact_responses,
             judge_retry_count=total_judge_retries,
             packs=all_requested_packs,
+            target_backend=target_backend,
+            target_base_url=target_base_url,
+            judge_backend=judge_backend,
+            judge_base_url=judge_base_url,
         )
 
     # 10. Exit code contract
@@ -1294,6 +1408,9 @@ def calibrate(
     timeout: float = typer.Option(60.0, "--timeout", help="Timeout in seconds for Ollama API requests."),
     judge_retries: int = typer.Option(2, "--judge-retries", help="Max retry attempts for judge evaluations."),
     judge_votes: int = typer.Option(1, "--judge-votes", help="Number of self-consistency voting samples for the judge (default: 1)."),
+    judge_backend: str = typer.Option("ollama", "--judge-backend", help="Evaluator judge backend: 'ollama' or 'openai'."),
+    judge_base_url: str | None = typer.Option(None, "--judge-base-url", help="Base URL for judge backend (defaults to --host for ollama, or https://api.openai.com/v1 for openai)."),
+    api_key_env: str = typer.Option("OPENAI_API_KEY", "--api-key-env", help="Environment variable name containing API key for OpenAI-compatible backend."),
     seed: int | None = typer.Option(None, "--seed", help="Random seed for reproducible evaluations."),
     cases: Path | None = typer.Option(None, "--cases", help="Path to custom calibration cases JSON file."),
     report_json: Path | None = typer.Option(None, "--report-json", help="Path to write machine-readable calibration report JSON."),
@@ -1315,11 +1432,19 @@ def calibrate(
         console.print(f"[bold red]Error loading calibration cases:[/bold red] {exc}")
         raise typer.Exit(code=2)
 
-    client: ollama.Client | None = None
+    from guard_rail_edge.backends import get_backend
+    client = get_backend(
+        backend_type=judge_backend,
+        model=judge_model,
+        base_url=judge_base_url,
+        host=host,
+        timeout=timeout,
+        api_key_env=api_key_env,
+        mock=mock,
+    )
     if not mock:
         try:
-            verify_ollama_ready(host=host, model_name=judge_model, timeout=timeout)
-            client = ollama.Client(host=host, timeout=timeout)
+            client.preflight(judge_model)
         except EvaluatorConnectionError as exc:
             console.print(f"[bold red]Connection Error:[/bold red] {exc}")
             raise typer.Exit(code=2)
@@ -1483,6 +1608,8 @@ def calibrate(
     if report_json is not None:
         report_data = {
             "judge_model": judge_model,
+            "judge_backend": judge_backend,
+            "judge_base_url": judge_base_url,
             "timestamp_utc": datetime.now(UTC).isoformat(),
             "verdict": "TRUSTWORTHY" if is_trustworthy else "NOT TRUSTWORTHY",
             "passed": is_trustworthy,
