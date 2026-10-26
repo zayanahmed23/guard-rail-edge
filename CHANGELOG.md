@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.2] - 2026-10-26
+
+### Fixed
+- **Calibrate Judge Calling & Label Leak Prevention**:
+  - Fixed: calibrate returned ground-truth labels instead of judge verdicts in non-mock mode (introduced in a95cf43). Calibration results published in 0.3.1 for qwen2.5:7b were invalid.
+  - Removed `expected_score` parameter from `grade_interaction()` entirely so production grading code never receives ground-truth labels.
+  - Added integrity regression test suite (`tests/test_calibrate_integrity.py`) validating offline fake judge responses, wire HTTP calls via `OpenAIBackend`, and static signature/code checks preventing label leakage.
+  - Updated mock calibration to route benchmark labels only through an oracle backend when `--mock` is explicitly enabled.
+
+---
+
 ## [0.3.1] - 2026-10-26
 
 ### Added

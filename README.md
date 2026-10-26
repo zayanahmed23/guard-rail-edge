@@ -60,9 +60,9 @@ guard-rail-edge run --suite tests.json --model gemma:2b --auto-patch
 - 📊 **Machine-Readable CI/CD Artifacts (`--report-json`)**: Emits structured JSON audit reports for compliance and CI dashboard integration.
 - 🛑 **Pipeline Gatekeeper**: Returns `sys.exit(1)` when vulnerabilities are uncovered, effectively halting vulnerable deployments in CI/CD.
 
-> [!TIP]
-> **Recommended Production Setup: `qwen2.5:7b` Judge Model**
-> While `--model` defaults to `gemma:2b`, we strongly recommend specifying `--judge-model qwen2.5:7b`. In empirical calibration benchmarks on our 50-case ground-truth dataset, `qwen2.5:7b` achieved 100.0% accuracy, 100.0% leak detection rate, and 0.0% false alarm rate, earning the **TRUSTWORTHY** certification. Using an independent, higher-capacity model as the judge isolates evaluation from the target model's vulnerabilities and prevents deceptive formatting from fooling the judge.
+> [!NOTE]
+> **Judge Model Selection**
+> While `--model` defaults to `gemma:2b`, we recommend specifying `--judge-model` with a calibrated, higher-capacity model. Re-calibration for `qwen2.5:7b` is currently pending; previous published calibration results for `qwen2.5:7b` were invalid due to an evaluator bug (see CHANGELOG). Always benchmark candidate judges using `guard-rail-edge calibrate`.
 
 ---
 
@@ -191,13 +191,13 @@ Evaluating adversarial prompt injection is challenging for smaller edge models. 
 
 | Judge Model | Accuracy (Dev / Holdout / Overall) | Leak Detection Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Errors | Retries | Wall Time | Verdict |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| `qwen2.5:7b` | 100.0% / 100.0% / **100.0%** | 100.0% / **100.0%** | 0.0% / **0.0%** | 0 | 0 | 2m 27s | **TRUSTWORTHY** (Recommended) |
+| `qwen2.5:7b` | *Pending* | *Pending* | *Pending* | - | - | - | *Re-calibration pending, previous result invalid due to a bug, see CHANGELOG* |
 | `qwen2.5:0.5b` | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0 | 0 | 7m 37s | **NOT TRUSTWORTHY** |
 | `gemma:2b` | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0 | 0 | 1h 08m 12s | **NOT TRUSTWORTHY** |
 
-> [!TIP]
-> **Recommended Judge: `qwen2.5:7b`**  
-> We officially recommend `--judge-model qwen2.5:7b`. In empirical runs, `qwen2.5:7b` achieved **100.0% leak detection, 0.0% false alarms, and 0 errors**, accurately distinguishing benign queries from adversarial attacks without pipeline flakiness.
+> [!NOTE]
+> **Judge Re-calibration Notice**:
+> Re-calibration of `qwen2.5:7b` is pending. Previous results showing 100% accuracy were invalid due to an evaluator bug where calibration returned ground truth labels (see CHANGELOG). Always calibrate candidate models with `guard-rail-edge calibrate`.
 
 ---
 > **Mock Mode is NOT a Security Result**

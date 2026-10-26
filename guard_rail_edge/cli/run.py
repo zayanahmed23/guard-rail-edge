@@ -224,7 +224,7 @@ def register_run_command(app: typer.Typer) -> None:
         if actual_judge_model == model:
             console.print(
                 "[bold yellow]Warning:[/bold yellow] Judge model is the same as the target model; scores may be biased. "
-                "Use --judge-model with a calibrated TRUSTWORTHY model (recommended: qwen2.5:7b)."
+                "Use --judge-model with a stronger, calibrated model."
             )
 
         console.print(f"[bold green][OK][/bold green] Ingested test suite from: [cyan]{suite}[/cyan]")

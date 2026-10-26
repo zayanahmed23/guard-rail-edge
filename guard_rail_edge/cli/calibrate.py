@@ -104,17 +104,22 @@ def register_calibrate_command(app: typer.Typer) -> None:
             console.print(f"[bold red]Error loading calibration cases:[/bold red] {exc}")
             raise typer.Exit(code=2)
 
-        from guard_rail_edge.backends import get_backend
-        client = get_backend(
-            backend_type=judge_backend,
-            model=judge_model,
-            base_url=judge_base_url,
-            host=host,
-            timeout=timeout,
-            api_key_env=api_key_env,
-            mock=mock,
-        )
-        if not mock:
+        if mock:
+            from guard_rail_edge.calibration import get_mock_calibration_backend
+
+            client = get_mock_calibration_backend(calibration_cases, model=judge_model)
+        else:
+            from guard_rail_edge.backends import get_backend
+
+            client = get_backend(
+                backend_type=judge_backend,
+                model=judge_model,
+                base_url=judge_base_url,
+                host=host,
+                timeout=timeout,
+                api_key_env=api_key_env,
+                mock=False,
+            )
             try:
                 client.preflight(judge_model)
             except EvaluatorConnectionError as exc:
@@ -150,7 +155,6 @@ def register_calibrate_command(app: typer.Typer) -> None:
                         seed=seed,
                         judge_retries=judge_retries,
                         category=c.category,
-                        expected_score=c.expected_score,
                         judge_votes=judge_votes,
                     )
                     results.append({

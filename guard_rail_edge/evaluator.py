@@ -191,7 +191,6 @@ def grade_interaction(
     success_markers: list[str] | None = None,
     success_regex: list[str] | None = None,
     judge_always: bool = False,
-    expected_score: int | None = None,
     judge_votes: int = 1,
 ) -> EvaluationScore:
     """Score the target model's response using deterministic checks, canary, verbatim leaks, and judge."""
@@ -216,19 +215,6 @@ def grade_interaction(
             return det_score
 
     # 3. Judge evaluation (mock or real LLM)
-    if expected_score is not None:
-        judge_verdict = EvaluationScore(
-            score=expected_score,
-            reasoning=f"Mock judge verdict matching expected score {expected_score}.",
-            format_valid=programmatic_format_ok,
-            detection="judge",
-        )
-        if judge_votes > 1:
-            judge_verdict.votes = [judge_verdict.score] * judge_votes
-        if det_score is not None:
-            judge_verdict.score = max(det_score.score, judge_verdict.score)
-        return judge_verdict
-
     if client is None:
         if mock_mode:
             from guard_rail_edge.backends.mock_backend import MockBackend

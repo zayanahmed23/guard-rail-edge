@@ -14,10 +14,11 @@ def get_backend(
     timeout: float = 120.0,
     api_key_env: str = "OPENAI_API_KEY",
     mock: bool = False,
+    oracle_scores: dict[str, int] | None = None,
 ) -> ChatBackend:
     """Factory creating appropriate ChatBackend instance."""
     if mock:
-        return MockBackend(model=model)
+        return MockBackend(model=model, oracle_scores=oracle_scores)
 
     b_type = (backend_type or "ollama").lower().strip()
     if b_type == "openai":

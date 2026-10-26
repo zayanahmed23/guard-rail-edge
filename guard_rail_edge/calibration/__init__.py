@@ -71,3 +71,14 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
         "retries": retries,
         "confusion_matrix": matrix,
     }
+
+
+def get_mock_calibration_backend(
+    cases: list[CalibrationCase],
+    model: str = "mock-judge",
+) -> Any:
+    """Create an oracle MockBackend initialized with benchmark labels for offline test verification."""
+    from guard_rail_edge.backends.mock_backend import MockBackend
+
+    oracle_scores: dict[str, int] = {c.attack: int(c.expected_score) for c in cases}
+    return MockBackend(model=model, oracle_scores=oracle_scores)

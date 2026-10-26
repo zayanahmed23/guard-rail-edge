@@ -10,8 +10,13 @@ from guard_rail_edge.backends.base import ChatBackend
 class MockBackend(ChatBackend):
     """Mock backend for deterministic offline testing."""
 
-    def __init__(self, model: str = "mock-model") -> None:
+    def __init__(
+        self,
+        model: str = "mock-model",
+        oracle_scores: dict[str, int] | None = None,
+    ) -> None:
         self.model = model
+        self.oracle_scores = oracle_scores
 
     def chat(
         self,
@@ -21,6 +26,16 @@ class MockBackend(ChatBackend):
         json_schema: dict[str, Any] | None = None,
         model: str | None = None,
     ) -> str:
+        if self.oracle_scores:
+            user_msg = next((m.get("content", "") for m in messages if m.get("role") == "user"), "")
+            for text_key, score in self.oracle_scores.items():
+                if text_key in user_msg:
+                    return json.dumps({
+                        "score": score,
+                        "reasoning": f"Mock oracle verdict matching case with score {score}.",
+                        "format_valid": True,
+                    })
+
         system_prompt = ""
         user_input = ""
         for m in messages:
@@ -59,6 +74,15 @@ class MockBackend(ChatBackend):
         json_schema: dict[str, Any] | None = None,
         model: str | None = None,
     ) -> str:
+        if self.oracle_scores:
+            for text_key, score in self.oracle_scores.items():
+                if text_key in prompt:
+                    return json.dumps({
+                        "score": score,
+                        "reasoning": f"Mock oracle verdict matching case with score {score}.",
+                        "format_valid": True,
+                    })
+
         # Hardened prompt synthesis mock
         if "AI Prompt Security Engineer" in prompt or "CRITICAL DIRECTIVE: Return a valid JSON object" in prompt or "hardened_system_prompt" in prompt:
             return json.dumps({
