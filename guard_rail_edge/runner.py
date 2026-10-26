@@ -151,6 +151,21 @@ def evaluate_suite(
     t_client = target_client if target_client is not None else client
     j_client = judge_client if judge_client is not None else client
 
+    if mock:
+        from guard_rail_edge.backends.mock_backend import MockBackend
+
+        if t_client is None:
+            t_client = MockBackend(model=model)
+        if j_client is None:
+            j_client = MockBackend(model=judge_model)
+    elif t_client is None or j_client is None:
+        from guard_rail_edge.backends.ollama_backend import OllamaBackend
+
+        if t_client is None:
+            t_client = OllamaBackend(model=model)
+        if j_client is None:
+            j_client = OllamaBackend(model=judge_model)
+
     sim_fn = _get_hook("run_target_simulation", evaluator_run_target_simulation)
     judge_fn = _get_hook("grade_interaction", evaluator_grade_interaction)
 
@@ -317,6 +332,15 @@ def heal(
             padding=(0, 2),
         )
     )
+
+    if mock and client is None:
+        from guard_rail_edge.backends.mock_backend import MockBackend
+
+        client = MockBackend(model=patch_model)
+    elif client is None:
+        from guard_rail_edge.backends.ollama_backend import OllamaBackend
+
+        client = OllamaBackend(model=patch_model)
 
     patch_gen_fn = _get_hook("generate_hardened_prompt", patcher_generate_hardened_prompt)
     with console.status("[bold cyan]Synthesizing hardened system prompt with defensive guardrails...[/bold cyan]"):

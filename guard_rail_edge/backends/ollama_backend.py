@@ -21,7 +21,7 @@ class OllamaBackend(ChatBackend):
         self.model = model
         self.host = host
         self.timeout = timeout
-        self.client = client or ollama.Client(host=host, timeout=timeout)
+        self.client = client
 
     def chat(
         self,
@@ -31,6 +31,7 @@ class OllamaBackend(ChatBackend):
         json_schema: dict[str, Any] | None = None,
         model: str | None = None,
     ) -> str:
+        client = self.client or ollama.Client(host=self.host, timeout=self.timeout)
         options: dict[str, Any] = {"temperature": temperature}
         if seed is not None:
             options["seed"] = seed
@@ -43,8 +44,21 @@ class OllamaBackend(ChatBackend):
         if json_schema is not None:
             kwargs["format"] = json_schema
 
-        response = self.client.chat(**kwargs)
-        return str(response.get("message", {}).get("content", "")).strip()
+        response = client.chat(**kwargs)
+        if isinstance(response, dict):
+            content_val = response.get("message", {}).get("content", "")
+            if isinstance(content_val, dict):
+                import json
+
+                return json.dumps(content_val)
+            return str(content_val).strip()
+        if hasattr(response, "message"):
+            msg = response.message
+            if hasattr(msg, "content"):
+                return str(msg.content).strip()
+            if isinstance(msg, dict):
+                return str(msg.get("content", "")).strip()
+        return str(response).strip()
 
     def generate(
         self,
@@ -54,6 +68,7 @@ class OllamaBackend(ChatBackend):
         json_schema: dict[str, Any] | None = None,
         model: str | None = None,
     ) -> str:
+        client = self.client or ollama.Client(host=self.host, timeout=self.timeout)
         options: dict[str, Any] = {"temperature": temperature}
         if seed is not None:
             options["seed"] = seed
@@ -66,8 +81,23 @@ class OllamaBackend(ChatBackend):
         if json_schema is not None:
             kwargs["format"] = json_schema
 
-        response = self.client.generate(**kwargs)
-        return str(response.get("response", "")).strip()
+        response = client.generate(**kwargs)
+        if isinstance(response, dict):
+            raw_val = response.get("response", "")
+            if isinstance(raw_val, dict):
+                import json
+
+                return json.dumps(raw_val)
+            return str(raw_val).strip()
+        if hasattr(response, "response"):
+            return str(response.response).strip()
+        return str(response).strip()
 
     def preflight(self, model: str) -> None:
-        verify_ollama_ready(host=self.host, model_name=model, timeout=self.timeout)
+        import sys
+
+        main_mod = sys.modules.get("guard_rail_edge.main")
+        verify_fn = getattr(main_mod, "verify_ollama_ready", verify_ollama_ready)
+        ready_client = verify_fn(host=self.host, model_name=model, timeout=self.timeout)
+        if ready_client is not None:
+            self.client = ready_client

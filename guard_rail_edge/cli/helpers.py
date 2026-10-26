@@ -1,15 +1,14 @@
 """Helper functions for attack assembly and backend client setup in CLI run."""
 
 import sys
-from typing import Any
 
 import typer
 from rich.panel import Panel
 
 from guard_rail_edge.attacks import list_available_packs, load_attacks
+from guard_rail_edge.backends.base import ChatBackend
 from guard_rail_edge.evaluator import EvaluatorConnectionError
 from guard_rail_edge.render import console
-from guard_rail_edge.runner import preflight
 from guard_rail_edge.schemas import AdversarialTest, TestSuite
 
 
@@ -112,80 +111,71 @@ def setup_evaluation_clients(
     timeout: float,
     api_key_env: str,
     mock: bool,
-) -> tuple[Any, Any, Any]:
+) -> tuple[ChatBackend, ChatBackend, ChatBackend]:
     """Initialize and run preflight checks for target, judge, and patcher clients."""
-    if target_backend == "ollama" and judge_backend == "ollama":
-        distinct_models: list[str] = []
-        for m in [model, actual_judge_model, actual_patch_model]:
-            if m not in distinct_models:
-                distinct_models.append(m)
-        client = preflight(distinct_models, host=host, timeout=timeout, mock=mock)
-        return client, client, client
-
     from guard_rail_edge.backends import get_backend
 
-    target_client: Any = None
-    judge_client: Any = None
-    patch_client: Any = None
+    if mock:
+        target_client = get_backend("mock", model=model, mock=True)
+        judge_client = get_backend("mock", model=actual_judge_model, mock=True)
+        patch_client = get_backend("mock", model=actual_patch_model, mock=True)
+        target_client.preflight(model)
+        judge_client.preflight(actual_judge_model)
+        if actual_patch_model != actual_judge_model:
+            patch_client.preflight(actual_patch_model)
+        return target_client, judge_client, patch_client
 
-    if target_backend == "openai":
-        target_client = get_backend(
-            backend_type="openai",
-            model=model,
-            base_url=target_base_url,
-            timeout=timeout,
-            api_key_env=api_key_env,
-            mock=mock,
-        )
-        if not mock:
-            try:
-                target_client.preflight(model)
-            except EvaluatorConnectionError as exc:
-                console.print(
-                    Panel(
-                        str(exc),
-                        title=f"[bold red]Target Backend Pre-Flight Check Failed ({model})[/bold red]",
-                        border_style="red",
-                    )
-                )
-                sys.exit(2)
+    target_client = get_backend(
+        backend_type=target_backend,
+        model=model,
+        base_url=target_base_url,
+        host=host,
+        timeout=timeout,
+        api_key_env=api_key_env,
+        mock=False,
+    )
+    judge_client = get_backend(
+        backend_type=judge_backend,
+        model=actual_judge_model,
+        base_url=judge_base_url,
+        host=host,
+        timeout=timeout,
+        api_key_env=api_key_env,
+        mock=False,
+    )
+    if actual_patch_model == actual_judge_model:
+        patch_client = judge_client
     else:
-        target_client = preflight([model], host=host, timeout=timeout, mock=mock)
-
-    if judge_backend == "openai":
-        judge_client = get_backend(
-            backend_type="openai",
-            model=actual_judge_model,
-            base_url=judge_base_url,
-            timeout=timeout,
-            api_key_env=api_key_env,
-            mock=mock,
-        )
         patch_client = get_backend(
-            backend_type="openai",
+            backend_type=judge_backend,
             model=actual_patch_model,
             base_url=judge_base_url,
+            host=host,
             timeout=timeout,
             api_key_env=api_key_env,
-            mock=mock,
+            mock=False,
         )
-        if not mock:
+
+    models_to_check: list[tuple[ChatBackend, str]] = [
+        (target_client, model),
+        (judge_client, actual_judge_model),
+    ]
+    if patch_client is not judge_client:
+        models_to_check.append((patch_client, actual_patch_model))
+
+    for client, m in models_to_check:
+        with console.status(f"[bold cyan]Running pre-flight check: Verifying backend & model '{m}'...[/bold cyan]"):
             try:
-                judge_client.preflight(actual_judge_model)
+                client.preflight(m)
+                console.print(f"[bold green][OK][/bold green] Backend ready. Model '[cyan]{m}[/cyan]' verified.\n")
             except EvaluatorConnectionError as exc:
                 console.print(
                     Panel(
                         str(exc),
-                        title=f"[bold red]Judge Backend Pre-Flight Check Failed ({actual_judge_model})[/bold red]",
+                        title=f"[bold red]Evaluator Connection Pre-Flight Check Failed ({m})[/bold red]",
                         border_style="red",
                     )
                 )
                 sys.exit(2)
-    else:
-        j_models = [actual_judge_model]
-        if actual_patch_model not in j_models:
-            j_models.append(actual_patch_model)
-        judge_client = preflight(j_models, host=host, timeout=timeout, mock=mock)
-        patch_client = judge_client
 
     return target_client, judge_client, patch_client
