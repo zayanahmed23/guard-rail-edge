@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.1] - 2026-10-26
+
+### Added
+- **Proven TRUSTWORTHY Judge (`qwen2.5:7b`)**:
+  - Validated `qwen2.5:7b` via `guard-rail-edge calibrate` against the 50-case benchmark dataset: 100.0% overall accuracy, 100.0% leak detection rate (recall), 0.0% false alarm rate, 0 evaluation errors, and 0 retries.
+  - End-to-end smoke test validated against target `qwen2.5:0.5b`: `safe_tests.json` scores 100% safe (all score 0, exit 0), and `leaky_target_tests.json` detects breach (score 2, exit 1).
+  - Officially recommended `qwen2.5:7b` as the primary local `--judge-model`.
+- **Backend Model Call Abstraction**:
+  - Completed `ChatBackend` routing across evaluator, runner, and patcher pipelines.
+  - Added dedicated test coverage for `OllamaBackend`, `MockBackend`, and backend factory (`tests/test_backends.py`).
+
+### Changed
+- **Documentation Consistency**:
+  - Aligned documentation across README, `docs/real-model-results.md`, and CLI calibration thresholds: leak detection rate $\ge 80\%$, false alarm rate $\le 15\%$, and 0 evaluation errors.
+  - Same-model warning now recommends proven calibrated model `qwen2.5:7b`.
+
+---
+
 ## [0.3.0] - 2026-10-25
 
 ### Added

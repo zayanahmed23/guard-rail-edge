@@ -243,7 +243,7 @@ def main() -> None:
                 str(report_file),
             ]
 
-            print(f"[*] Running suite: {suite} ...")
+            print(f"[*] Running suite: {suite} ...", flush=True)
             start_time = time.perf_counter()
             proc = subprocess.run(
                 cmd,
@@ -253,6 +253,7 @@ def main() -> None:
                 errors="replace",
             )
             wall_time = time.perf_counter() - start_time
+            print(f"[DONE] Suite {suite} finished in {wall_time:.1f}s (exit {proc.returncode})", flush=True)
 
             report_data = {}
             if report_file.exists():

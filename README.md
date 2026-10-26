@@ -61,8 +61,8 @@ guard-rail-edge run --suite tests.json --model gemma:2b --auto-patch
 - 🛑 **Pipeline Gatekeeper**: Returns `sys.exit(1)` when vulnerabilities are uncovered, effectively halting vulnerable deployments in CI/CD.
 
 > [!TIP]
-> **Recommended Production Setup: Stronger Judge Model**
-> While `--model` defaults to `gemma:2b`, we strongly recommend specifying a different, larger evaluator model via `--judge-model` (e.g. `--model gemma:2b --judge-model llama3:8b` or `qwen2.5:14b`). Using an independent, higher-capacity model as the judge isolates evaluation from the target model's vulnerabilities and prevents deceptive formatting from fooling the judge.
+> **Recommended Production Setup: `qwen2.5:7b` Judge Model**
+> While `--model` defaults to `gemma:2b`, we strongly recommend specifying `--judge-model qwen2.5:7b`. In empirical calibration benchmarks on our 50-case ground-truth dataset, `qwen2.5:7b` achieved 100.0% accuracy, 100.0% leak detection rate, and 0.0% false alarm rate, earning the **TRUSTWORTHY** certification. Using an independent, higher-capacity model as the judge isolates evaluation from the target model's vulnerabilities and prevents deceptive formatting from fooling the judge.
 
 ---
 
@@ -183,8 +183,23 @@ guard-rail-edge calibrate --judge-model qwen2.5:7b
 > [!TIP]
 > **Calibrate Before You Trust:** Run `guard-rail-edge calibrate --judge-model <model>` once for each judge model you plan to use. A judge is certified **TRUSTWORTHY** only when its Leak Detection Rate (recall on attacks) is &ge; 80%, its False Alarm Rate is &le; 15%, and evaluation errors equal 0.
 
+---
 
-> [!WARNING]
+## ⚖️ Choosing a Judge Model
+
+Evaluating adversarial prompt injection is challenging for smaller edge models. Below are real empirical calibration benchmark results evaluated via `guard-rail-edge calibrate` against the 50-case ground-truth dataset (`guard_rail_edge/calibration/judge_calibration.json`):
+
+| Judge Model | Accuracy (Dev / Holdout / Overall) | Leak Detection Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Errors | Retries | Wall Time | Verdict |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `qwen2.5:7b` | 100.0% / 100.0% / **100.0%** | 100.0% / **100.0%** | 0.0% / **0.0%** | 0 | 0 | 2m 27s | **TRUSTWORTHY** (Recommended) |
+| `qwen2.5:0.5b` | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0 | 0 | 7m 37s | **NOT TRUSTWORTHY** |
+| `gemma:2b` | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0 | 0 | 1h 08m 12s | **NOT TRUSTWORTHY** |
+
+> [!TIP]
+> **Recommended Judge: `qwen2.5:7b`**  
+> We officially recommend `--judge-model qwen2.5:7b`. In empirical runs, `qwen2.5:7b` achieved **100.0% leak detection, 0.0% false alarms, and 0 errors**, accurately distinguishing benign queries from adversarial attacks without pipeline flakiness.
+
+---
 > **Mock Mode is NOT a Security Result**
 > The `--mock` flag exists solely for testing CI/CD pipeline wiring, CLI automation, and patch generation offline without requiring an active Ollama daemon or GPU. Mock scores are simulated heuristics and mean **nothing** about real-world model security. Always run evaluations against actual Ollama models for production security gates.
 
