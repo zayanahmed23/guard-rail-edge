@@ -35,190 +35,51 @@ def register_run_command(app: typer.Typer) -> None:
 
     @app.command()
     def run(
-        suite: Path = typer.Option(
-            Path("tests.json"),
-            "--suite",
-            "-s",
-            help="Path to the JSON test suite file.",
-        ),
-        model: str = typer.Option(
-            "gemma:2b",
-            "--model",
-            "-m",
-            help="Local Ollama model to use for target simulation.",
-        ),
-        judge_model: str | None = typer.Option(
-            None,
-            "--judge-model",
-            help="Ollama model to use as evaluator judge (defaults to --model).",
-        ),
-        patch_model: str | None = typer.Option(
-            None,
-            "--patch-model",
-            help="Ollama model to use for self-healing patch synthesis (defaults to --judge-model).",
-        ),
-        target_backend: str = typer.Option(
-            "ollama",
-            "--target-backend",
-            help="Target simulation backend: 'ollama' or 'openai'.",
-        ),
-        target_base_url: str | None = typer.Option(
-            None,
-            "--target-base-url",
-            help="Base URL for target backend (defaults to --host for ollama, or https://api.openai.com/v1 for openai).",
-        ),
-        judge_backend: str = typer.Option(
-            "ollama",
-            "--judge-backend",
-            help="Evaluator judge backend: 'ollama' or 'openai'.",
-        ),
-        judge_base_url: str | None = typer.Option(
-            None,
-            "--judge-base-url",
-            help="Base URL for judge backend (defaults to --host for ollama, or https://api.openai.com/v1 for openai).",
-        ),
-        api_key_env: str = typer.Option(
-            "OPENAI_API_KEY",
-            "--api-key-env",
-            help="Environment variable name containing API key for OpenAI-compatible backend.",
-        ),
-        host: str = typer.Option(
-            "http://localhost:11434",
-            "--host",
-            help="Ollama server host URL.",
-        ),
-        timeout: float = typer.Option(
-            120.0,
-            "--timeout",
-            help="Timeout in seconds for Ollama API requests.",
-        ),
-        judge_retries: int = typer.Option(
-            2,
-            "--judge-retries",
-            min=0,
-            help="Number of retries for the judge model on unparseable responses or errors.",
-        ),
-        judge_votes: int = typer.Option(
-            1,
-            "--judge-votes",
-            help="Number of self-consistency voting samples for the judge (default: 1).",
-        ),
-        repeats: int = typer.Option(
-            1,
-            "--repeats",
-            min=1,
-            help="Number of times to repeat each test (final score is max across runs).",
-        ),
-        seed: int | None = typer.Option(
-            None,
-            "--seed",
-            help="Deterministic random seed passed to Ollama options.",
-        ),
-        auto_patch: bool = typer.Option(
-            False,
-            "--auto-patch",
-            "-p",
-            help="Enable automated self-healing prompt rewrite if vulnerabilities are detected.",
-        ),
-        apply: bool = typer.Option(
-            False,
-            "--apply",
-            help="Automatically apply the hardened system prompt directly to the suite file.",
-        ),
-        force_apply: bool = typer.Option(
-            False,
-            "--force-apply",
-            help="Force applying the hardened prompt even if verification fails or is skipped.",
-        ),
-        patch_output: Path | None = typer.Option(
-            None,
-            "--patch-output",
-            "-o",
-            help="Custom output filepath for generated .patch file (defaults to <suite.stem>.patch).",
-        ),
-        verify_patch: bool = typer.Option(
-            True,
-            "--verify-patch/--no-verify-patch",
-            help="Re-run failed adversarial tests against the hardened prompt to verify the fix.",
-        ),
-        fail_on_suspicious: bool = typer.Option(
-            False,
-            "--fail-on-suspicious",
-            help="Exit with code 1 on score >= 1 instead of only score == 2.",
-        ),
-        fail_on_format: bool = typer.Option(
-            False,
-            "--fail-on-format",
-            help="Fail pipeline (exit 1) if any test response violates output format constraints.",
-        ),
-        on_review: str = typer.Option(
-            "fail",
-            "--on-review",
-            help="Policy for tests requiring review: 'fail' (exit 3) or 'warn' (report only, exit 0).",
-        ),
-        auto_canary: bool = typer.Option(
-            True,
-            "--auto-canary/--no-auto-canary",
-            help="Inject and detect an automatic unique per-run confidential canary code.",
-        ),
-        judge_always: bool = typer.Option(
-            False,
-            "--judge-always",
-            help="Run judge even when deterministic checks (markers, regex, canary) detect violations.",
-        ),
-        overlap_check: bool = typer.Option(
-            True,
-            "--overlap-check/--no-overlap-check",
-            help="Enable or disable fuzzy overlap leak detection.",
-        ),
-        overlap_threshold: float = typer.Option(
-            0.25,
-            "--overlap-threshold",
-            help="Threshold for fuzzy overlap check routing to review (default: 0.25).",
-        ),
-        pack: list[str] | None = typer.Option(
-            None,
-            "--pack",
-            help="Built-in attack pack to include (repeatable or 'all').",
-        ),
-        exclude: list[str] | None = typer.Option(
-            None,
-            "--exclude",
-            help="Attack ID to exclude (repeatable).",
-        ),
-        min_severity: str | None = typer.Option(
-            None,
-            "--min-severity",
-            help="Minimum attack severity to include: low, medium, or high.",
-        ),
-        report_json: Path | None = typer.Option(
-            None,
-            "--report-json",
-            "-r",
-            help="Export a machine-readable JSON security report for CI/CD artifacts.",
-        ),
-        redact_responses: bool = typer.Option(
-            False,
-            "--redact-responses",
-            help="Redact target responses in the JSON report to first 80 chars + '...[redacted]'.",
-        ),
-        mock: bool = typer.Option(
-            False,
-            "--mock",
-            help="Run in mock/offline mode with simulated edge responses.",
-        ),
-        version: bool | None = typer.Option(
-            None,
-            "--version",
-            "-v",
-            help="Show guard-rail-edge version and exit.",
-            callback=version_callback,
-            is_eager=True,
-        ),
+        suite: Path = typer.Option(Path("tests.json"), "--suite", "-s", help="Path to the JSON test suite file."),
+        model: str = typer.Option("gemma:2b", "--model", "-m", help="Local Ollama model for target simulation."),
+        judge_model: str | None = typer.Option(None, "--judge-model", help="Evaluator judge model (defaults to --model)."),
+        patch_model: str | None = typer.Option(None, "--patch-model", help="Model for patch synthesis (defaults to --judge-model)."),
+        target_backend: str = typer.Option("ollama", "--target-backend", help="Target backend: 'ollama' or 'openai'."),
+        target_base_url: str | None = typer.Option(None, "--target-base-url", help="Base URL for target backend."),
+        judge_backend: str = typer.Option("ollama", "--judge-backend", help="Judge backend: 'ollama' or 'openai'."),
+        judge_base_url: str | None = typer.Option(None, "--judge-base-url", help="Base URL for judge backend."),
+        second_judge_model: str | None = typer.Option(None, "--second-judge-model", help="Second judge model for ensemble cross-checking."),
+        second_judge_backend: str = typer.Option("ollama", "--second-judge-backend", help="Second judge backend: 'ollama' or 'openai'."),
+        second_judge_base_url: str | None = typer.Option(None, "--second-judge-base-url", help="Base URL for second judge backend."),
+        disagreement_policy: str = typer.Option("review", "--disagreement-policy", help="Disagreement policy: 'review' or 'max'."),
+        api_key_env: str = typer.Option("OPENAI_API_KEY", "--api-key-env", help="Env var name for OpenAI-compatible API key."),
+        host: str = typer.Option("http://localhost:11434", "--host", help="Ollama server host URL."),
+        timeout: float = typer.Option(120.0, "--timeout", help="Timeout in seconds for API requests."),
+        judge_retries: int = typer.Option(2, "--judge-retries", min=0, help="Max retries for unparseable judge responses."),
+        judge_votes: int = typer.Option(1, "--judge-votes", help="Number of self-consistency voting samples for judge."),
+        repeats: int = typer.Option(1, "--repeats", min=1, help="Repeat count per test (final score is max)."),
+        seed: int | None = typer.Option(None, "--seed", help="Deterministic random seed passed to options."),
+        auto_patch: bool = typer.Option(False, "--auto-patch", "-p", help="Enable automated self-healing prompt rewrite."),
+        apply: bool = typer.Option(False, "--apply", help="Apply hardened system prompt directly to suite file."),
+        force_apply: bool = typer.Option(False, "--force-apply", help="Force applying hardened prompt without verification."),
+        patch_output: Path | None = typer.Option(None, "--patch-output", "-o", help="Custom output filepath for .patch file."),
+        verify_patch: bool = typer.Option(True, "--verify-patch/--no-verify-patch", help="Re-run tests to verify fix."),
+        fail_on_suspicious: bool = typer.Option(False, "--fail-on-suspicious", help="Exit code 1 on score >= 1."),
+        fail_on_format: bool = typer.Option(False, "--fail-on-format", help="Fail pipeline if format violated."),
+        on_review: str = typer.Option("fail", "--on-review", help="Policy for needs-review: 'fail' or 'warn'."),
+        auto_canary: bool = typer.Option(True, "--auto-canary/--no-auto-canary", help="Inject unique per-run canary."),
+        judge_always: bool = typer.Option(False, "--judge-always", help="Run judge even when deterministic checks fire."),
+        overlap_check: bool = typer.Option(True, "--overlap-check/--no-overlap-check", help="Enable fuzzy overlap leak detection."),
+        overlap_threshold: float = typer.Option(0.25, "--overlap-threshold", help="Threshold for fuzzy overlap check."),
+        pack: list[str] | None = typer.Option(None, "--pack", help="Built-in attack pack to include (repeatable/all)."),
+        exclude: list[str] | None = typer.Option(None, "--exclude", help="Attack ID to exclude (repeatable)."),
+        min_severity: str | None = typer.Option(None, "--min-severity", help="Minimum severity: low, medium, or high."),
+        report_json: Path | None = typer.Option(None, "--report-json", "-r", help="Export report JSON."),
+        redact_responses: bool = typer.Option(False, "--redact-responses", help="Redact target responses in report."),
+        mock: bool = typer.Option(False, "--mock", help="Run in mock/offline mode."),
+        version: bool | None = typer.Option(None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True),
     ) -> None:
         """Run automated prompt injection tests against target LLM system prompts."""
         if on_review not in ("fail", "warn"):
             console.print(f"[bold red]Error:[/bold red] Invalid --on-review policy '{on_review}'. Must be 'fail' or 'warn'.")
+            sys.exit(2)
+        if disagreement_policy not in ("review", "max"):
+            console.print(f"[bold red]Error:[/bold red] Invalid --disagreement-policy '{disagreement_policy}'. Must be 'review' or 'max'.")
             sys.exit(2)
 
         if apply and not verify_patch and not force_apply:
@@ -255,13 +116,15 @@ def register_run_command(app: typer.Typer) -> None:
         console.print(f"[dim]Expected Format:[/dim] [bold]{test_suite.expected_output_format}[/bold]")
         console.print(f"[dim]Target Model:[/dim] [bold]{model}[/bold]")
         console.print(f"[dim]Judge Model:[/dim] [bold]{actual_judge_model}[/bold]")
+        if second_judge_model:
+            console.print(f"[dim]Second Judge:[/dim] [bold]{second_judge_model}[/bold] (Backend: {second_judge_backend}, Policy: {disagreement_policy})")
         console.print(f"[dim]Patch Model:[/dim] [bold]{actual_patch_model}[/bold] (Host: {host})")
         console.print(f"[dim]Auto-Patch Mode:[/dim] [bold]{'Enabled' if (auto_patch or apply) else 'Disabled'}[/bold]")
         console.print(f"[dim]Apply In-Place:[/dim] [bold]{'Enabled' if apply else 'Disabled'}[/bold]")
         console.print(f"[dim]Fail-on-Suspicious:[/dim] [bold]{fail_on_suspicious}[/bold]\n")
 
         # 3. Pre-flight health check
-        target_client, judge_client, patch_client = setup_evaluation_clients(
+        target_client, judge_client, patch_client, second_judge_client = setup_evaluation_clients(
             target_backend=target_backend,
             judge_backend=judge_backend,
             model=model,
@@ -273,6 +136,9 @@ def register_run_command(app: typer.Typer) -> None:
             timeout=timeout,
             api_key_env=api_key_env,
             mock=mock,
+            second_judge_backend=second_judge_backend,
+            second_judge_model=second_judge_model,
+            second_judge_base_url=second_judge_base_url,
         )
 
         # 4. Evaluation
@@ -283,6 +149,9 @@ def register_run_command(app: typer.Typer) -> None:
         test_results, total_judge_retries = evaluate_suite(
             target_client=target_client,
             judge_client=judge_client,
+            second_judge_client=second_judge_client,
+            second_judge_model=second_judge_model,
+            disagreement_policy=disagreement_policy,
             model=model,
             judge_model=actual_judge_model,
             system_prompt=test_suite.system_prompt or "",

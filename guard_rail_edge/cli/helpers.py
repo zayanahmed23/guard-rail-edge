@@ -111,10 +111,14 @@ def setup_evaluation_clients(
     timeout: float,
     api_key_env: str,
     mock: bool,
-) -> tuple[ChatBackend, ChatBackend, ChatBackend]:
-    """Initialize and run preflight checks for target, judge, and patcher clients."""
+    second_judge_backend: str = "ollama",
+    second_judge_model: str | None = None,
+    second_judge_base_url: str | None = None,
+) -> tuple[ChatBackend, ChatBackend, ChatBackend, ChatBackend | None]:
+    """Initialize and run preflight checks for target, judge, patcher, and optional second judge clients."""
     from guard_rail_edge.backends import get_backend
 
+    second_judge_client: ChatBackend | None = None
     if mock:
         target_client = get_backend("mock", model=model, mock=True)
         judge_client = get_backend("mock", model=actual_judge_model, mock=True)
@@ -123,7 +127,10 @@ def setup_evaluation_clients(
         judge_client.preflight(actual_judge_model)
         if actual_patch_model != actual_judge_model:
             patch_client.preflight(actual_patch_model)
-        return target_client, judge_client, patch_client
+        if second_judge_model:
+            second_judge_client = get_backend("mock", model=second_judge_model, mock=True)
+            second_judge_client.preflight(second_judge_model)
+        return target_client, judge_client, patch_client, second_judge_client
 
     target_client = get_backend(
         backend_type=target_backend,
@@ -156,12 +163,25 @@ def setup_evaluation_clients(
             mock=False,
         )
 
+    if second_judge_model:
+        second_judge_client = get_backend(
+            backend_type=second_judge_backend,
+            model=second_judge_model,
+            base_url=second_judge_base_url,
+            host=host,
+            timeout=timeout,
+            api_key_env=api_key_env,
+            mock=False,
+        )
+
     models_to_check: list[tuple[ChatBackend, str]] = [
         (target_client, model),
         (judge_client, actual_judge_model),
     ]
     if patch_client is not judge_client:
         models_to_check.append((patch_client, actual_patch_model))
+    if second_judge_client and second_judge_model:
+        models_to_check.append((second_judge_client, second_judge_model))
 
     for client, m in models_to_check:
         with console.status(f"[bold cyan]Running pre-flight check: Verifying backend & model '{m}'...[/bold cyan]"):
@@ -178,4 +198,4 @@ def setup_evaluation_clients(
                 )
                 sys.exit(2)
 
-    return target_client, judge_client, patch_client
+    return target_client, judge_client, patch_client, second_judge_client

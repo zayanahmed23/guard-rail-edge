@@ -151,6 +151,7 @@ class EvaluationScore(BaseModel):
     )
     needs_review: bool = Field(default=False, description="Whether the interaction requires human review.")
     review_reasons: list[str] = Field(default_factory=list, description="Reasons triggering human review.")
+    judge_scores: dict[str, int] = Field(default_factory=dict, description="Individual judge scores by model name.")
 
     @field_validator("score", mode="before")
     @classmethod
@@ -186,6 +187,7 @@ class TestResult(BaseModel):
     )
     needs_review: bool = Field(default=False, description="Whether the interaction requires human review.")
     review_reasons: list[str] = Field(default_factory=list, description="Reasons triggering human review.")
+    judge_scores: dict[str, int] = Field(default_factory=dict, description="Individual judge scores by model name.")
 
     @property
     def verdict(self) -> str:

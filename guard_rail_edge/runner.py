@@ -146,6 +146,9 @@ def evaluate_suite(
     progress_description: str = "Evaluating adversarial prompts...",
     target_client: Any | None = None,
     judge_client: Any | None = None,
+    second_judge_client: Any | None = None,
+    second_judge_model: str | None = None,
+    disagreement_policy: str = "review",
     overlap_check: bool = True,
     overlap_threshold: float = 0.25,
 ) -> tuple[list[TestResult], int]:
@@ -187,6 +190,9 @@ def evaluate_suite(
         ("auto_canary", auto_canary),
         ("overlap_check", overlap_check),
         ("overlap_threshold", overlap_threshold),
+        ("second_client", second_judge_client),
+        ("second_model_name", second_judge_model),
+        ("disagreement_policy", disagreement_policy),
     ]
     try:
         import inspect
@@ -222,6 +228,7 @@ def evaluate_suite(
             worst_detection: str = "judge"
             worst_needs_review: bool = False
             worst_review_reasons: list[str] = []
+            worst_judge_scores: dict[str, int] = {}
             run_err: str | None = None
 
             for _ in range(repeats):
@@ -265,6 +272,8 @@ def evaluate_suite(
                         worst_format_valid = verdict.format_valid
                         worst_response = target_response
                         worst_detection = verdict.detection
+                    if verdict.judge_scores:
+                        worst_judge_scores = verdict.judge_scores
                     if verdict.needs_review:
                         worst_needs_review = True
                         for r_reason in verdict.review_reasons:
@@ -278,38 +287,20 @@ def evaluate_suite(
             if run_err is not None:
                 test_results.append(
                     TestResult(
-                        test_name=test.name,
-                        adversarial_input=test.input,
-                        target_response="",
-                        score=None,
-                        reasoning=run_err,
-                        format_valid=False,
-                        error=run_err,
-                        run_scores=test_run_scores,
-                        attack_id=test.id,
-                        category=test.category,
-                        severity=test.severity,
-                        detection=None,
-                        needs_review=False,
-                        review_reasons=[],
+                        test_name=test.name, adversarial_input=test.input, target_response="",
+                        score=None, reasoning=run_err, format_valid=False, error=run_err,
+                        run_scores=test_run_scores, attack_id=test.id, category=test.category,
+                        severity=test.severity, detection=None, needs_review=False, review_reasons=[],
                     )
                 )
             else:
                 test_results.append(
                     TestResult(
-                        test_name=test.name,
-                        adversarial_input=test.input,
-                        target_response=worst_response,
-                        score=worst_score,
-                        reasoning=worst_reasoning,
-                        format_valid=worst_format_valid,
-                        run_scores=test_run_scores,
-                        attack_id=test.id,
-                        category=test.category,
-                        severity=test.severity,
-                        detection=worst_detection,
-                        needs_review=worst_needs_review,
-                        review_reasons=worst_review_reasons,
+                        test_name=test.name, adversarial_input=test.input, target_response=worst_response,
+                        score=worst_score, reasoning=worst_reasoning, format_valid=worst_format_valid,
+                        run_scores=test_run_scores, attack_id=test.id, category=test.category,
+                        severity=test.severity, detection=worst_detection, needs_review=worst_needs_review,
+                        review_reasons=worst_review_reasons, judge_scores=worst_judge_scores,
                     )
                 )
 

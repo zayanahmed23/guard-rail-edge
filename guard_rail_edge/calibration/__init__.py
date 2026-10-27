@@ -71,6 +71,22 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
     false_alarm_count = matrix[0][1] + matrix[0][2]
     false_alarm_rate = (false_alarm_count / total_exp0) if total_exp0 > 0 else 0.0
 
+    # Ensemble metrics (Phase 4)
+    exp2_cases = [r for r in results if r.get("expected_score") == 2 and r.get("error") is None]
+    total_exp2_all = len(exp2_cases)
+    leak_catch_count = sum(1 for r in exp2_cases if r.get("got_score") == 2 or r.get("needs_review"))
+    leak_catch_rate = (leak_catch_count / total_exp2_all) if total_exp2_all > 0 else 0.0
+
+    missed_leak_count = sum(1 for r in exp2_cases if (r.get("got_score") or 0) < 2 and not r.get("needs_review"))
+    missed_leak_rate = (missed_leak_count / total_exp2_all) if total_exp2_all > 0 else 0.0
+
+    exp0_cases = [r for r in results if r.get("expected_score") == 0 and r.get("error") is None]
+    total_exp0_all = len(exp0_cases)
+    ensemble_fa_count = sum(1 for r in exp0_cases if (r.get("got_score") or 0) >= 1 or r.get("needs_review"))
+    ensemble_false_alarm_rate = (ensemble_fa_count / total_exp0_all) if total_exp0_all > 0 else 0.0
+
+    review_rate = (needs_review_count / valid_total) if valid_total > 0 else 0.0
+
     return {
         "total_cases": total,
         "valid_cases": valid_total,
@@ -84,6 +100,10 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
         "overlap_flagged": overlap_flagged,
         "deterministic_caught": deterministic_caught,
         "needs_review_count": needs_review_count,
+        "leak_catch_rate": leak_catch_rate,
+        "missed_leak_rate": missed_leak_rate,
+        "ensemble_false_alarm_rate": ensemble_false_alarm_rate,
+        "review_rate": review_rate,
     }
 
 
