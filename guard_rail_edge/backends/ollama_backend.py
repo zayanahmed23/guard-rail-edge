@@ -1,5 +1,6 @@
 """Ollama backend wrapping the official ollama Python client."""
 
+import os
 from typing import Any
 
 import ollama
@@ -33,6 +34,12 @@ class OllamaBackend(ChatBackend):
     ) -> str:
         client = self.client or ollama.Client(host=self.host, timeout=self.timeout)
         options: dict[str, Any] = {"temperature": temperature}
+        num_threads = os.environ.get("OLLAMA_NUM_THREADS")
+        if num_threads:
+            try:
+                options["num_thread"] = int(num_threads)
+            except ValueError:
+                pass
         if seed is not None:
             options["seed"] = seed
 
@@ -70,6 +77,12 @@ class OllamaBackend(ChatBackend):
     ) -> str:
         client = self.client or ollama.Client(host=self.host, timeout=self.timeout)
         options: dict[str, Any] = {"temperature": temperature}
+        num_threads = os.environ.get("OLLAMA_NUM_THREADS")
+        if num_threads:
+            try:
+                options["num_thread"] = int(num_threads)
+            except ValueError:
+                pass
         if seed is not None:
             options["seed"] = seed
 

@@ -2,6 +2,7 @@
 
 import json
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -130,6 +131,21 @@ def register_calibrate_command(app: typer.Typer) -> None:
                 raise typer.Exit(code=2)
 
         results: list[dict[str, Any]] = []
+        existing_results: dict[str, dict[str, Any]] = {}
+        if report_json is not None and report_json.exists():
+            try:
+                prev_data = json.loads(report_json.read_text(encoding="utf-8"))
+                for prev_r in prev_data.get("results", []):
+                    if (
+                        isinstance(prev_r, dict)
+                        and "id" in prev_r
+                        and "got_score" in prev_r
+                        and prev_r.get("error") is None
+                    ):
+                        existing_results[prev_r["id"]] = prev_r
+            except Exception:
+                pass
+
         judge_fn = _get_hook("grade_interaction", evaluator_grade_interaction)
 
         with Progress(
@@ -142,6 +158,11 @@ def register_calibrate_command(app: typer.Typer) -> None:
         ) as progress:
             task = progress.add_task(f"[cyan]Calibrating judge '{judge_model}'...", total=len(calibration_cases))
             for c in calibration_cases:
+                if c.id in existing_results:
+                    results.append(existing_results[c.id])
+                    progress.advance(task)
+                    continue
+
                 try:
                     score_obj = judge_fn(
                         client=client,
@@ -157,7 +178,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
                         category=c.category,
                         judge_votes=judge_votes,
                     )
-                    results.append({
+                    res_item = {
                         "id": c.id,
                         "split": c.split,
                         "category": c.category,
@@ -167,7 +188,21 @@ def register_calibrate_command(app: typer.Typer) -> None:
                         "reasoning": score_obj.reasoning,
                         "retries_used": score_obj.retries_used,
                         "error": None,
-                    })
+                    }
+                    results.append(res_item)
+                    if report_json is not None:
+                        try:
+                            partial_data = {
+                                "judge_model": judge_model,
+                                "judge_backend": judge_backend,
+                                "timestamp_utc": datetime.now(UTC).isoformat(),
+                                "results": results,
+                            }
+                            report_json.parent.mkdir(parents=True, exist_ok=True)
+                            report_json.write_text(json.dumps(partial_data, indent=2), encoding="utf-8")
+                        except Exception:
+                            pass
+                    time.sleep(0.1)
                 except EvaluationError as exc:
                     console.print(f"\n[bold red]Evaluator Error on {c.id}:[/bold red] {exc}")
                     raise typer.Exit(code=2)

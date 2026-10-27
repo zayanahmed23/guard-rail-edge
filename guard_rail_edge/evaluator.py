@@ -1,6 +1,7 @@
 """Evaluator engine interacting with Ollama for target simulation, format pre-checking, and rubric grading."""
 
 import json
+import os
 import re
 from typing import Any
 
@@ -249,6 +250,12 @@ def grade_interaction(
             attempt_options: dict[str, Any] = {
                 "temperature": attempt_temp,
             }
+            num_threads = os.environ.get("OLLAMA_NUM_THREADS")
+            if num_threads:
+                try:
+                    attempt_options["num_thread"] = int(num_threads)
+                except ValueError:
+                    pass
             if vote_seed is not None:
                 attempt_options["seed"] = vote_seed + attempt
 

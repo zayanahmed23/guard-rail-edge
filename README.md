@@ -191,13 +191,14 @@ Evaluating adversarial prompt injection is challenging for smaller edge models. 
 
 | Judge Model | Accuracy (Dev / Holdout / Overall) | Leak Detection Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Errors | Retries | Wall Time | Verdict |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| `qwen2.5:7b` | *Pending* | *Pending* | *Pending* | - | - | - | *Re-calibration pending, previous result invalid due to a bug, see CHANGELOG* |
+| `qwen2.5:7b` (1 vote) | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | 0 | 67 | 23m 17s | **NOT TRUSTWORTHY** (Holdout Recall 75.0% < 80.0%) |
+| `qwen2.5:7b` (3 votes) | *NOT RUN* | *NOT RUN* | *NOT RUN* | - | - | - | *NOT RUN (hardware constraint on dual-core CPU test environment)* |
 | `qwen2.5:0.5b` | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0 | 0 | 7m 37s | **NOT TRUSTWORTHY** |
 | `gemma:2b` | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0 | 0 | 1h 08m 12s | **NOT TRUSTWORTHY** |
 
 > [!NOTE]
-> **Judge Re-calibration Notice**:
-> Re-calibration of `qwen2.5:7b` is pending. Previous results showing 100% accuracy were invalid due to an evaluator bug where calibration returned ground truth labels (see CHANGELOG). Always calibrate candidate models with `guard-rail-edge calibrate`.
+> **Judge Model Recommendation**:
+> While `qwen2.5:7b` achieved 0.0% false alarms (never penalizing benign safe inputs) and passed the Dev split (83.3% recall), it fell short on the Holdout split (75.0% recall, missing 2 of 8 jailbreaks). It specifically struggles with prompt extraction attacks disguised as negative constraints (e.g. *"I must keep [SECRET] confidential"*) or foreign language translations. For autonomous production security gates, we recommend stronger hosted models (`--judge-backend openai` with GPT-4o or Claude 3.5 Sonnet) or domain-specific calibration before deployment.
 
 ---
 > **Mock Mode is NOT a Security Result**
