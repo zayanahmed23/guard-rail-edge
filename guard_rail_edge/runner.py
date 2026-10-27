@@ -146,6 +146,8 @@ def evaluate_suite(
     progress_description: str = "Evaluating adversarial prompts...",
     target_client: Any | None = None,
     judge_client: Any | None = None,
+    overlap_check: bool = True,
+    overlap_threshold: float = 0.25,
 ) -> tuple[list[TestResult], int]:
     """Evaluate a list of adversarial tests against a system prompt with repeat runs and worst-case aggregation."""
     tests_list = tests or []
@@ -179,19 +181,23 @@ def evaluate_suite(
     eval_kwargs: dict[str, Any] = {}
     if seed is not None:
         eval_kwargs["seed"] = seed
+    kw_pairs = [
+        ("judge_retries", judge_retries),
+        ("judge_votes", judge_votes),
+        ("auto_canary", auto_canary),
+        ("overlap_check", overlap_check),
+        ("overlap_threshold", overlap_threshold),
+    ]
     try:
         import inspect
+
         sig = inspect.signature(judge_fn)
-        if "judge_retries" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
-            eval_kwargs["judge_retries"] = judge_retries
-        if "judge_votes" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
-            eval_kwargs["judge_votes"] = judge_votes
-        if "auto_canary" in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
-            eval_kwargs["auto_canary"] = auto_canary
+        for p_name, p_val in kw_pairs:
+            if p_name in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                eval_kwargs[p_name] = p_val
     except Exception:
-        eval_kwargs["judge_retries"] = judge_retries
-        eval_kwargs["judge_votes"] = judge_votes
-        eval_kwargs["auto_canary"] = auto_canary
+        for p_name, p_val in kw_pairs:
+            eval_kwargs[p_name] = p_val
 
     test_results: list[TestResult] = []
     total_judge_retries = 0
@@ -387,23 +393,9 @@ def heal(
     )
 
     improvements_text = "\n".join([f"• [green]{imp}[/green]" for imp in hardened_proposal.security_improvements])
-    console.print(
-        Panel(
-            improvements_text,
-            title="[bold cyan]Security Hardening Measures Applied[/bold cyan]",
-            border_style="cyan",
-            padding=(0, 2),
-        )
-    )
-
+    console.print(Panel(improvements_text, title="[bold cyan]Security Hardening Measures Applied[/bold cyan]", border_style="cyan", padding=(0, 2)))
     diff_syntax = Syntax(diff_text, "diff", theme="monokai", line_numbers=True)
-    console.print(
-        Panel(
-            diff_syntax,
-            title="[bold yellow]Unified Diff Preview (.patch)[/bold yellow]",
-            border_style="yellow",
-        )
-    )
+    console.print(Panel(diff_syntax, title="[bold yellow]Unified Diff Preview (.patch)[/bold yellow]", border_style="yellow"))
 
     console.print(f"[bold green][OK][/bold green] Unified patch generated and saved to: [yellow bold]{saved_patch_path}[/yellow bold]\n")
     return hardened_proposal, hardening_source, diff_text, saved_patch_path

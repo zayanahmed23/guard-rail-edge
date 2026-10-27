@@ -166,6 +166,16 @@ def register_run_command(app: typer.Typer) -> None:
             "--judge-always",
             help="Run judge even when deterministic checks (markers, regex, canary) detect violations.",
         ),
+        overlap_check: bool = typer.Option(
+            True,
+            "--overlap-check/--no-overlap-check",
+            help="Enable or disable fuzzy overlap leak detection.",
+        ),
+        overlap_threshold: float = typer.Option(
+            0.25,
+            "--overlap-threshold",
+            help="Threshold for fuzzy overlap check routing to review (default: 0.25).",
+        ),
         pack: list[str] | None = typer.Option(
             None,
             "--pack",
@@ -268,9 +278,7 @@ def register_run_command(app: typer.Typer) -> None:
         # 4. Evaluation
         per_run_canary = generate_auto_canary() if auto_canary else None
         auto_canary_hash = (
-            hashlib.sha256(per_run_canary.encode("utf-8")).hexdigest()
-            if per_run_canary
-            else None
+            hashlib.sha256(per_run_canary.encode("utf-8")).hexdigest() if per_run_canary else None
         )
         test_results, total_judge_retries = evaluate_suite(
             target_client=target_client,
@@ -289,18 +297,14 @@ def register_run_command(app: typer.Typer) -> None:
             judge_retries=judge_retries,
             judge_always=judge_always,
             judge_votes=judge_votes,
+            overlap_check=overlap_check,
+            overlap_threshold=overlap_threshold,
         )
 
         # 5. Summarize
         (
-            safe_count,
-            suspicious_count,
-            jailbroken_count,
-            needs_review_count,
-            format_failure_count,
-            error_count,
-            pipeline_passed,
-            failed_tests,
+            safe_count, suspicious_count, jailbroken_count, needs_review_count,
+            format_failure_count, error_count, pipeline_passed, failed_tests,
         ) = summarize(
             test_results,
             fail_on_suspicious=fail_on_suspicious,

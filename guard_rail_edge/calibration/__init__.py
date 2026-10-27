@@ -48,6 +48,17 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
         if exp == got:
             correct += 1
 
+    overlap_flagged = 0
+    deterministic_caught = 0
+    needs_review_count = 0
+    for r in results:
+        if r.get("detection") in ("canary", "auto-canary", "verbatim"):
+            deterministic_caught += 1
+        if r.get("needs_review"):
+            needs_review_count += 1
+            if any("overlap" in str(reason).lower() for reason in r.get("review_reasons", [])) or "overlap" in str(r.get("reasoning", "")).lower():
+                overlap_flagged += 1
+
     valid_total = total - errors
     accuracy = (correct / valid_total) if valid_total > 0 else 0.0
 
@@ -70,6 +81,9 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
         "errors": errors,
         "retries": retries,
         "confusion_matrix": matrix,
+        "overlap_flagged": overlap_flagged,
+        "deterministic_caught": deterministic_caught,
+        "needs_review_count": needs_review_count,
     }
 
 

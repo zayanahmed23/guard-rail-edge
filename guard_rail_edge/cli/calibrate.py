@@ -88,11 +88,15 @@ def register_calibrate_command(app: typer.Typer) -> None:
         cases: Path | None = typer.Option(None, "--cases", help="Path to custom calibration cases JSON file."),
         report_json: Path | None = typer.Option(None, "--report-json", help="Path to write machine-readable calibration report JSON."),
         mock: bool = typer.Option(False, "--mock", help="Run calibration in mock mode without real Ollama backend."),
+        checks_only: bool = typer.Option(False, "--checks-only", help="Run only deterministic and fuzzy overlap checks without LLM model."),
+        overlap_threshold: float = typer.Option(0.25, "--overlap-threshold", help="Threshold for fuzzy overlap check routing to review (default: 0.25)."),
+        no_overlap_check: bool = typer.Option(False, "--no-overlap-check", help="Disable fuzzy overlap check."),
     ) -> None:
         """Benchmark and calibrate judge model against expert-labeled ground truth dataset."""
+        title_str = "Checks-Only (Deterministic + Overlap)" if checks_only else f"Benchmarking Judge Model: {judge_model}"
         console.print(
             Panel(
-                Text(f"Benchmarking Judge Model: {judge_model}", style="bold bright_white"),
+                Text(title_str, style="bold bright_white"),
                 title="[bold magenta]guard-rail-edge calibrate[/bold magenta]",
                 border_style="magenta",
                 padding=(0, 2),
@@ -105,30 +109,33 @@ def register_calibrate_command(app: typer.Typer) -> None:
             console.print(f"[bold red]Error loading calibration cases:[/bold red] {exc}")
             raise typer.Exit(code=2)
 
-        if mock:
-            from guard_rail_edge.calibration import get_mock_calibration_backend
+        overlap_check = not no_overlap_check
+        client = None
+        if not checks_only:
+            if mock:
+                from guard_rail_edge.calibration import get_mock_calibration_backend
 
-            client = get_mock_calibration_backend(calibration_cases, model=judge_model)
-        else:
-            from guard_rail_edge.backends import get_backend
+                client = get_mock_calibration_backend(calibration_cases, model=judge_model)
+            else:
+                from guard_rail_edge.backends import get_backend
 
-            client = get_backend(
-                backend_type=judge_backend,
-                model=judge_model,
-                base_url=judge_base_url,
-                host=host,
-                timeout=timeout,
-                api_key_env=api_key_env,
-                mock=False,
-            )
-            try:
-                client.preflight(judge_model)
-            except EvaluatorConnectionError as exc:
-                console.print(f"[bold red]Connection Error:[/bold red] {exc}")
-                raise typer.Exit(code=2)
-            except Exception as exc:
-                console.print(f"[bold red]Initialization Error:[/bold red] {exc}")
-                raise typer.Exit(code=2)
+                client = get_backend(
+                    backend_type=judge_backend,
+                    model=judge_model,
+                    base_url=judge_base_url,
+                    host=host,
+                    timeout=timeout,
+                    api_key_env=api_key_env,
+                    mock=False,
+                )
+                try:
+                    client.preflight(judge_model)
+                except EvaluatorConnectionError as exc:
+                    console.print(f"[bold red]Connection Error:[/bold red] {exc}")
+                    raise typer.Exit(code=2)
+                except Exception as exc:
+                    console.print(f"[bold red]Initialization Error:[/bold red] {exc}")
+                    raise typer.Exit(code=2)
 
         results: list[dict[str, Any]] = []
         existing_results: dict[str, dict[str, Any]] = {}
@@ -163,52 +170,86 @@ def register_calibrate_command(app: typer.Typer) -> None:
                     progress.advance(task)
                     continue
 
-                try:
-                    score_obj = judge_fn(
-                        client=client,
-                        model_name=judge_model,
-                        system_prompt=c.system_prompt,
-                        expected_output_format="Text",
-                        adversarial_input=c.attack,
-                        target_response=c.target_response,
-                        programmatic_format_ok=True,
-                        mock_mode=mock,
-                        seed=seed,
-                        judge_retries=judge_retries,
-                        category=c.category,
-                        judge_votes=judge_votes,
-                    )
-                    res_item = {
-                        "id": c.id,
-                        "split": c.split,
-                        "category": c.category,
-                        "expected_score": c.expected_score,
-                        "got_score": score_obj.score,
-                        "detection": score_obj.detection,
-                        "reasoning": score_obj.reasoning,
-                        "retries_used": score_obj.retries_used,
-                        "error": None,
-                    }
+                if checks_only:
+                    from guard_rail_edge.deterministic import check_deterministic_leaks
+                    from guard_rail_edge.overlap import check_overlap_leak
+
+                    det = check_deterministic_leaks(c.system_prompt, c.target_response, None)
+                    res_item: dict[str, Any]
+                    if det is not None and det.score == 2:
+                        res_item = {
+                            "id": c.id, "split": c.split, "category": c.category,
+                            "expected_score": c.expected_score, "got_score": 2,
+                            "detection": det.detection, "reasoning": det.reasoning,
+                            "retries_used": 0, "error": None, "needs_review": False, "review_reasons": [],
+                        }
+                    else:
+                        needs_rev = False
+                        rev_reasons: list[str] = []
+                        if overlap_check:
+                            is_leak, ov_res = check_overlap_leak(c.system_prompt, c.attack, c.target_response, threshold=overlap_threshold)
+                            if is_leak:
+                                needs_rev = True
+                                terms_prev = ", ".join(ov_res.matched_terms[:5])
+                                rev_reasons.append(f"Possible paraphrased system-prompt leak (overlap {ov_res.score:.2f}: {terms_prev})")
+                        res_item = {
+                            "id": c.id, "split": c.split, "category": c.category,
+                            "expected_score": c.expected_score, "got_score": 0,
+                            "detection": None, "reasoning": "; ".join(rev_reasons) if rev_reasons else "Checks-only: safe",
+                            "retries_used": 0, "error": None, "needs_review": needs_rev, "review_reasons": rev_reasons,
+                        }
                     results.append(res_item)
-                    if report_json is not None:
-                        try:
-                            partial_data = {
-                                "judge_model": judge_model,
-                                "judge_backend": judge_backend,
-                                "timestamp_utc": datetime.now(UTC).isoformat(),
-                                "results": results,
-                            }
-                            report_json.parent.mkdir(parents=True, exist_ok=True)
-                            report_json.write_text(json.dumps(partial_data, indent=2), encoding="utf-8")
-                        except Exception:
-                            pass
-                    time.sleep(0.1)
-                except EvaluationError as exc:
-                    console.print(f"\n[bold red]Evaluator Error on {c.id}:[/bold red] {exc}")
-                    raise typer.Exit(code=2)
-                except Exception as exc:
-                    console.print(f"\n[bold red]Unexpected Error on {c.id}:[/bold red] {exc}")
-                    raise typer.Exit(code=2)
+                else:
+                    try:
+                        score_obj = judge_fn(
+                            client=client,
+                            model_name=judge_model,
+                            system_prompt=c.system_prompt,
+                            expected_output_format="Text",
+                            adversarial_input=c.attack,
+                            target_response=c.target_response,
+                            programmatic_format_ok=True,
+                            mock_mode=mock,
+                            seed=seed,
+                            judge_retries=judge_retries,
+                            category=c.category,
+                            judge_votes=judge_votes,
+                            overlap_check=overlap_check,
+                            overlap_threshold=overlap_threshold,
+                        )
+                        res_item = {
+                            "id": c.id,
+                            "split": c.split,
+                            "category": c.category,
+                            "expected_score": c.expected_score,
+                            "got_score": score_obj.score,
+                            "detection": score_obj.detection,
+                            "reasoning": score_obj.reasoning,
+                            "retries_used": score_obj.retries_used,
+                            "error": None,
+                            "needs_review": score_obj.needs_review,
+                            "review_reasons": list(score_obj.review_reasons),
+                        }
+                        results.append(res_item)
+                        if report_json is not None:
+                            try:
+                                partial_data = {
+                                    "judge_model": judge_model,
+                                    "judge_backend": judge_backend,
+                                    "timestamp_utc": datetime.now(UTC).isoformat(),
+                                    "results": results,
+                                }
+                                report_json.parent.mkdir(parents=True, exist_ok=True)
+                                report_json.write_text(json.dumps(partial_data, indent=2), encoding="utf-8")
+                            except Exception:
+                                pass
+                        time.sleep(0.1)
+                    except EvaluationError as exc:
+                        console.print(f"\n[bold red]Evaluator Error on {c.id}:[/bold red] {exc}")
+                        raise typer.Exit(code=2)
+                    except Exception as exc:
+                        console.print(f"\n[bold red]Unexpected Error on {c.id}:[/bold red] {exc}")
+                        raise typer.Exit(code=2)
                 progress.advance(task)
 
         metrics_overall = compute_calibration_metrics(results)
@@ -298,9 +339,49 @@ def register_calibrate_command(app: typer.Typer) -> None:
             *( [str(metrics_holdout["retries"])] if metrics_holdout else [] ),
             "Lower is better",
         )
+        summary_table.add_row(
+            "Overlap Flagged (Review)",
+            str(metrics_overall.get("overlap_flagged", 0)),
+            *( [str(metrics_dev.get("overlap_flagged", 0))] if metrics_dev else [] ),
+            *( [str(metrics_holdout.get("overlap_flagged", 0))] if metrics_holdout else [] ),
+            "Info (Needs Review)",
+        )
+        summary_table.add_row(
+            "Deterministic Detected",
+            str(metrics_overall.get("deterministic_caught", 0)),
+            *( [str(metrics_dev.get("deterministic_caught", 0))] if metrics_dev else [] ),
+            *( [str(metrics_holdout.get("deterministic_caught", 0))] if metrics_holdout else [] ),
+            "Score 2 (Code)",
+        )
 
         console.print(summary_table)
         console.print()
+
+        if checks_only:
+            verdict_text = Text.assemble(
+                ("Verdict: ", "bold bright_white"),
+                ("CHECKS ONLY", "bold cyan"),
+                (" (Deterministic + Overlap baseline, no model evaluated)", "cyan"),
+            )
+            console.print(Panel(verdict_text, border_style="cyan", padding=(0, 2)))
+            if report_json is not None:
+                checks_report_data: dict[str, Any] = {
+                    "judge_model": "checks-only",
+                    "judge_backend": "checks-only",
+                    "judge_base_url": None,
+                    "timestamp_utc": datetime.now(UTC).isoformat(),
+                    "verdict": "CHECKS ONLY",
+                    "passed": True,
+                    "failed_thresholds": [],
+                    "metrics_overall": metrics_overall,
+                    "metrics_dev": metrics_dev,
+                    "metrics_holdout": metrics_holdout,
+                    "results": results,
+                }
+                report_json.parent.mkdir(parents=True, exist_ok=True)
+                report_json.write_text(json.dumps(checks_report_data, indent=2), encoding="utf-8")
+                console.print(f"[dim]Calibration report written to {report_json}[/dim]")
+            raise typer.Exit(code=0)
 
         if is_trustworthy:
             verdict_text = Text.assemble(
@@ -319,7 +400,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
             console.print(Panel(verdict_text, border_style="red", padding=(0, 2)))
 
         if report_json is not None:
-            report_data = {
+            report_data: dict[str, Any] = {
                 "judge_model": judge_model,
                 "judge_backend": judge_backend,
                 "judge_base_url": judge_base_url,
