@@ -1,5 +1,4 @@
-"""Adversarial evaluation run CLI command."""
-
+import hashlib
 import sys
 from pathlib import Path
 
@@ -12,6 +11,7 @@ from guard_rail_edge.cli.helpers import (
     setup_evaluation_clients,
     version_callback,
 )
+from guard_rail_edge.deterministic import generate_auto_canary
 from guard_rail_edge.render import console
 from guard_rail_edge.report import write_report
 from guard_rail_edge.runner import (
@@ -156,6 +156,11 @@ def register_run_command(app: typer.Typer) -> None:
             "--on-review",
             help="Policy for tests requiring review: 'fail' (exit 3) or 'warn' (report only, exit 0).",
         ),
+        auto_canary: bool = typer.Option(
+            True,
+            "--auto-canary/--no-auto-canary",
+            help="Inject and detect an automatic unique per-run confidential canary code.",
+        ),
         judge_always: bool = typer.Option(
             False,
             "--judge-always",
@@ -261,6 +266,12 @@ def register_run_command(app: typer.Typer) -> None:
         )
 
         # 4. Evaluation
+        per_run_canary = generate_auto_canary() if auto_canary else None
+        auto_canary_hash = (
+            hashlib.sha256(per_run_canary.encode("utf-8")).hexdigest()
+            if per_run_canary
+            else None
+        )
         test_results, total_judge_retries = evaluate_suite(
             target_client=target_client,
             judge_client=judge_client,
@@ -270,6 +281,7 @@ def register_run_command(app: typer.Typer) -> None:
             expected_output_format=test_suite.expected_output_format,
             tests=final_tests,
             canary=test_suite.canary,
+            auto_canary=per_run_canary,
             required_json_keys=test_suite.required_json_keys,
             mock=mock,
             repeats=repeats,
@@ -334,6 +346,7 @@ def register_run_command(app: typer.Typer) -> None:
                     seed=seed,
                     judge_retries=judge_retries,
                     judge_votes=judge_votes,
+                    enable_auto_canary=auto_canary,
                 )
                 total_judge_retries += verif_retries
 
@@ -393,6 +406,9 @@ def register_run_command(app: typer.Typer) -> None:
                 judge_backend=judge_backend,
                 judge_base_url=judge_base_url,
                 needs_review_count=needs_review_count,
+                auto_canary_used=auto_canary,
+                auto_canary_hash=auto_canary_hash,
+                auto_canary=per_run_canary,
             )
 
         # 10. Exit code contract (Priority: 2 > 1 > 3 > 0)

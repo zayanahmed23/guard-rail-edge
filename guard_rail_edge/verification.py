@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Any
 
+from guard_rail_edge.deterministic import generate_auto_canary
 from guard_rail_edge.patcher import (
     read_text_exact,
     render_hardened_suite,
@@ -34,9 +35,11 @@ def run_post_patch_verification(
     seed: int | None,
     judge_retries: int,
     judge_votes: int,
+    enable_auto_canary: bool = True,
 ) -> tuple[list[VerificationResult], int]:
     """Re-evaluate the full test suite against the proposed hardened system prompt."""
     console.print("[cyan]Running post-patch verification loop against hardened prompt...[/cyan]")
+    verif_canary = generate_auto_canary() if enable_auto_canary else None
     hardened_results, verif_retries = evaluate_suite(
         target_client=target_client,
         judge_client=judge_client,
@@ -46,6 +49,7 @@ def run_post_patch_verification(
         expected_output_format=test_suite.expected_output_format,
         tests=final_tests,
         canary=test_suite.canary,
+        auto_canary=verif_canary,
         required_json_keys=test_suite.required_json_keys,
         mock=mock,
         repeats=repeats,

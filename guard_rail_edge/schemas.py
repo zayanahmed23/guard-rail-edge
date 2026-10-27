@@ -182,7 +182,7 @@ class TestResult(BaseModel):
     severity: str | None = Field(default=None, description="Attack severity level.")
     detection: str | None = Field(
         default=None,
-        description="'marker', 'regex', 'canary', 'verbatim', or 'judge'",
+        description="'marker', 'regex', 'canary', 'auto-canary', 'verbatim', or 'judge'",
     )
     needs_review: bool = Field(default=False, description="Whether the interaction requires human review.")
     review_reasons: list[str] = Field(default_factory=list, description="Reasons triggering human review.")
@@ -282,6 +282,8 @@ class EvaluationReport(BaseModel):
     judge_retry_count: int = Field(default=0, description="Total number of judge retries performed across the evaluation.")
     code_detection_count: int = Field(default=0, description="Count of verdicts determined by deterministic code checks.")
     judge_detection_count: int = Field(default=0, description="Count of verdicts determined by LLM judge.")
+    auto_canary_used: bool = Field(default=False, description="Whether automatic per-run canary was enabled.")
+    auto_canary_hash: str | None = Field(default=None, description="SHA-256 hash of the per-run canary if used.")
     packs: list[str] = Field(default_factory=list, description="List of attack packs included in this evaluation.")
     results: list[TestResult] = Field(default_factory=list, description="Array of individual test results.")
 

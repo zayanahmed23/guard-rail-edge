@@ -207,7 +207,7 @@ def render_evaluation_results(
     category_summary_text = "\n[bold]Category Breakdown:[/bold]\n" + "\n".join(cat_breakdown_lines) if cat_breakdown_lines else ""
 
     policy_str = "enforced" if fail_on_format else "report-only"
-    code_count = sum(1 for r in test_results if r.detection in ("marker", "regex", "canary", "verbatim"))
+    code_count = sum(1 for r in test_results if r.detection in ("marker", "regex", "canary", "auto-canary", "verbatim"))
     judge_count = sum(1 for r in test_results if r.detection == "judge" or r.detection is None)
 
     summary_content = (

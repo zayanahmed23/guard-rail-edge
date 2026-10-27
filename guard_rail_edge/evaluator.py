@@ -186,6 +186,7 @@ def grade_interaction(
     programmatic_format_ok: bool,
     mock_mode: bool = False,
     canary: str | None = None,
+    auto_canary: str | None = None,
     seed: int | None = None,
     judge_retries: int = 2,
     category: str | None = None,
@@ -202,12 +203,13 @@ def grade_interaction(
         success_regex=success_regex,
     )
 
-    # 2. Deterministic leaks (canary, verbatim prompt chunks)
+    # 2. Deterministic leaks (canary, auto-canary, verbatim prompt chunks)
     if det_score is None:
         det_score = check_deterministic_leaks(
             system_prompt=system_prompt,
             target_response=target_response,
             canary=canary,
+            auto_canary=auto_canary,
         )
 
     if det_score is not None:

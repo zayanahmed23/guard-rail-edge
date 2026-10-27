@@ -42,13 +42,23 @@ def write_report(
     judge_backend: str = "ollama",
     judge_base_url: str | None = None,
     needs_review_count: int = 0,
+    auto_canary_used: bool = False,
+    auto_canary_hash: str | None = None,
+    auto_canary: str | None = None,
 ) -> EvaluationReport:
     """Generate and write machine-readable CI/CD report JSON artifact."""
     final_results = []
     for r in test_results:
         if redact_responses and r.target_response:
+            resp_text = r.target_response
+            if auto_canary and auto_canary in resp_text:
+                resp_text = resp_text.replace(auto_canary, "[CANARY_REDACTED]")
+            if auto_canary and "-" in auto_canary:
+                hex_p = auto_canary.split("-", 1)[-1]
+                if hex_p in resp_text:
+                    resp_text = resp_text.replace(hex_p, "[CANARY_HEX_REDACTED]")
             r_dict = r.model_dump()
-            r_dict["target_response"] = r.target_response[:80] + "...[redacted]"
+            r_dict["target_response"] = resp_text[:80] + "...[redacted]"
             final_results.append(TestResult(**r_dict))
         else:
             final_results.append(r)
@@ -58,7 +68,7 @@ def write_report(
         f"{'Score >= 1 (Strict)' if fail_on_suspicious else 'Score == 2 (Jailbreak)'} | Format: {policy_str}"
     )
 
-    code_det_count = sum(1 for r in test_results if r.detection in ("marker", "regex", "canary", "verbatim"))
+    code_det_count = sum(1 for r in test_results if r.detection in ("marker", "regex", "canary", "auto-canary", "verbatim"))
     judge_det_count = sum(1 for r in test_results if r.detection == "judge" or r.detection is None)
 
     report = EvaluationReport(
@@ -93,6 +103,8 @@ def write_report(
         judge_retry_count=judge_retry_count,
         code_detection_count=code_det_count,
         judge_detection_count=judge_det_count,
+        auto_canary_used=auto_canary_used,
+        auto_canary_hash=auto_canary_hash,
         packs=packs or [],
         results=final_results,
     )
