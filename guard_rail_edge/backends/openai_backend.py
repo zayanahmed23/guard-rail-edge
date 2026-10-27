@@ -99,6 +99,10 @@ class OpenAIBackend(ChatBackend):
 
     def list_models(self) -> list[str]:
         """Fetch available model IDs from GET /models."""
+        if not self._get_api_key():
+            raise EvaluatorConnectionError(
+                f"API key environment variable '{self.api_key_env}' is not set or empty."
+            )
         self._apply_throttle()
         models_url = f"{self.base_url}/models"
         req = urllib.request.Request(models_url, headers=self._get_headers(), method="GET")

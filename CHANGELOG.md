@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-10-27
+
+### Added
+- **"NEEDS REVIEW" Verdict & Exit Code 3**:
+  - Added 4-tier verdict hierarchy: `JAILBROKEN (2) > NEEDS REVIEW > SUSPICIOUS (1) > SAFE (0)`.
+  - Added `needs_review: bool` and `review_reasons: list[str]` attributes to `TestResult`.
+  - Added `--on-review fail|warn` (default: `fail`). Under `fail`, any test flagged `NEEDS REVIEW` fails the CI/CD pipeline with Exit Code 3 (unless confirmed score 2 jailbreaks trigger Exit Code 1).
+  - Exit code priority: `2 (Tool/Infra Error) > 1 (Vulnerabilities) > 3 (Needs Review) > 0 (Pass)`.
+  - Updated summary banners and JSON reports with `needs_review_count`, per-test `needs_review`, and `review_reasons`.
+  - Self-healing prompt hardening (`--auto-patch` / `--apply`) incorporates traces from `needs_review` tests when `--on-review fail`.
+- **Automatic Per-Run Canary**:
+  - Automatically generates a unique secret canary `GRE-<10HEX>` appended to the target system prompt only.
+  - Detects verbatim leaks deterministically in code (case-insensitive, separator-agnostic, and contiguous 8+ hex digits) as Score 2 (`auto-canary`).
+  - Secret canary is strictly excluded from judge prompts, reports (stored as SHA-256 only), patches, and `--apply` hardened prompts.
+  - Can be disabled via `--no-auto-canary`.
+- **Fuzzy Overlap Check (Paraphrase & Summary Detection)**:
+  - Added zero-dependency module `guard_rail_edge/overlap.py` evaluating 3-gram and distinctive term overlap between prompt and response.
+  - Escalates potential paraphrased leaks to `NEEDS REVIEW` when overlap ratio &ge; 0.45.
+  - Adheres strictly to the escalation-only principle: never lowers scores and never assigns score 2 directly.
+  - Added `guard-rail-edge calibrate --checks-only` to run deterministic and overlap checks offline without constructing or invoking backends.
+  - Configurable via `--overlap-threshold FLOAT` and `--no-overlap-check`.
+- **Two-Judge Ensemble & Disagreement Handling**:
+  - Added `--second-judge-model`, `--second-judge-backend`, and `--second-judge-base-url`.
+  - Added `--disagreement-policy review|max` (default: `review`). Disagreements between judges route to `NEEDS REVIEW`.
+  - Non-unanimous self-consistency votes (`--judge-votes N > 1`) escalate to `NEEDS REVIEW`.
+  - Added per-test `judge_scores` dictionary in JSON reports.
+  - Added ensemble calibration metrics (Leak Catch Rate, Missed Leak Rate, False Alarm Rate, Review Rate) and `TRUSTWORTHY (WITH REVIEW)` calibration verdict.
+- **Judge Response Cache & Parse Failure Mitigation**:
+  - Added content-addressed judge cache (`guard_rail_edge/cache.py`) via `--judge-cache DIR` (default `.guard-rail-edge-cache/` for calibrate).
+  - Added `--debug-judge` CLI flag to output raw unparseable judge responses to stderr and include them in the JSON report.
+  - Created resilient JSON parser (`guard_rail_edge/parser.py`) stripping reasoning `<think>` tags, markdown code blocks, trailing commas, and providing regex key-value extraction fallback.
+- **Free Hosted Judge Presets & Rate Limiting**:
+  - Added provider presets in `guard_rail_edge/backends/presets.py` for `groq`, `openrouter`, `gemini`, and `github`.
+  - Implemented automatic request throttling (`--max-rpm`) and exponential backoff (2s, 4s, 8s, 16s, 32s) honoring HTTP 429/503 `Retry-After` headers.
+  - Added `guard-rail-edge models --backend <preset>` to list available models securely without exposing credentials.
+
+### Changed
+- **Report Schema Version**: Bumped `report_schema_version` to `"2"` in JSON reports to reflect `needs_review_count`, `needs_review`, `review_reasons`, and `judge_scores`.
+- **Default Review Policy**: `--on-review` defaults to `fail` (escalates uncertain signals to block pipeline at Exit Code 3 rather than guessing PASS).
+- **Default Disagreement Policy**: `--disagreement-policy` defaults to `review` (disagreements route to human review rather than guessing).
+- **Default Calibrate Cache**: `guard-rail-edge calibrate` defaults to caching judge replies in `.guard-rail-edge-cache/` to eliminate re-run costs.
+- **Default Auto-Canary**: Automatic per-run canary is enabled by default to catch translation/verbatim leaks in code.
+
+---
+
 ## [0.3.2] - 2026-10-26
 
 ### Fixed

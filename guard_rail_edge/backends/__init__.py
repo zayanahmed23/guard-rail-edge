@@ -25,7 +25,7 @@ def get_backend(
     b_type = (backend_type or "ollama").lower().strip()
     preset = get_preset(b_type)
     if preset is not None:
-        url = base_url or host or preset.base_url
+        url = base_url or preset.base_url
         key_env = api_key_env if api_key_env != "OPENAI_API_KEY" else preset.api_key_env
         rpm = max_rpm if max_rpm is not None else preset.default_max_rpm
         return OpenAIBackend(

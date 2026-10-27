@@ -181,6 +181,8 @@ def main() -> None:
     parser.add_argument("--host", default="http://localhost:11434", help="Ollama server host URL")
     parser.add_argument("--target-model", default="llama3.2:3b", help="Model used as target simulator")
     parser.add_argument("--judge-model", default="qwen2.5:7b", help="Model used as evaluator judge")
+    parser.add_argument("--judge-backend", default="ollama", help="Backend for evaluator judge (ollama, groq, etc.)")
+    parser.add_argument("--api-key-env", default=None, help="Environment variable name holding the API key")
     parser.add_argument("--pull", action="store_true", help="Automatically pull models if missing")
     parser.add_argument("--out", default="docs/real-model-results.md", help="Destination path for markdown report")
     parser.add_argument("--report-dir", default=None, help="Directory to save JSON reports (defaults to a temp folder)")
@@ -192,8 +194,11 @@ def main() -> None:
     print(f"[OK] Ollama server reached at {args.host} (version: {ollama_version})")
 
     # 2. Check / pull models
-    ensure_models_available(args.host, [args.target_model, args.judge_model], pull=args.pull)
-    print(f"[OK] Models verified: target='{args.target_model}', judge='{args.judge_model}'\n")
+    local_models = [args.target_model]
+    if args.judge_backend == "ollama":
+        local_models.append(args.judge_model)
+    ensure_models_available(args.host, local_models, pull=args.pull)
+    print(f"[OK] Target model verified: '{args.target_model}'; judge='{args.judge_model}' (backend={args.judge_backend})\n")
 
     suites = [
         "examples/tests.json",
@@ -233,6 +238,8 @@ def main() -> None:
                 args.target_model,
                 "--judge-model",
                 args.judge_model,
+                "--judge-backend",
+                args.judge_backend,
                 "--host",
                 args.host,
                 "--repeats",
@@ -242,6 +249,8 @@ def main() -> None:
                 "--report-json",
                 str(report_file),
             ]
+            if args.api_key_env:
+                cmd.extend(["--api-key-env", args.api_key_env])
 
             print(f"[*] Running suite: {suite} ...", flush=True)
             start_time = time.perf_counter()
