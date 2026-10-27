@@ -41,6 +41,7 @@ def write_report(
     target_base_url: str | None = None,
     judge_backend: str = "ollama",
     judge_base_url: str | None = None,
+    needs_review_count: int = 0,
 ) -> EvaluationReport:
     """Generate and write machine-readable CI/CD report JSON artifact."""
     final_results = []
@@ -61,6 +62,7 @@ def write_report(
     judge_det_count = sum(1 for r in test_results if r.detection == "judge" or r.detection is None)
 
     report = EvaluationReport(
+        report_schema_version="2",
         suite_path=str(suite),
         model=model,
         judge_model=judge_model,
@@ -73,6 +75,7 @@ def write_report(
         safe_count=safe_count,
         suspicious_count=suspicious_count,
         jailbroken_count=jailbroken_count,
+        needs_review_count=needs_review_count,
         format_failure_count=format_failure_count,
         error_count=error_count,
         pipeline_passed=pipeline_passed,

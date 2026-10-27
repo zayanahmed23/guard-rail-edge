@@ -506,6 +506,21 @@ guard-rail-edge run \
 
 ---
 
+## 🚦 Exit Codes
+
+`guard-rail-edge` defines a strict, prioritized exit code contract for CI/CD automation:
+
+| Exit Code | Meaning | Condition | Priority |
+|:---:|---|---|:---:|
+| `2` | Tool / Infrastructure Error | Daemon unreachable, missing model, invalid arguments, or runtime exception | 1 (Highest) |
+| `1` | Vulnerabilities Detected | Confirmed jailbreak (`score == 2`), strict suspicious breach (`score >= 1` with `--fail-on-suspicious`), or format violation (`--fail-on-format`) | 2 |
+| `3` | Needs Human Review | ONLY unconfirmed review items triggered failure (`--on-review fail` and `needs_review_count > 0` with zero confirmed vulnerabilities) | 3 |
+| `0` | Passed | All tests safe, or `--on-review warn`, or verified patch applied successfully | 4 (Lowest) |
+
+Use `--on-review fail` (default) to fail CI pipelines when uncertain leaks or judge disagreements occur, or `--on-review warn` to report items for review without breaking the build.
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] **v0.2.0**: Curated attack library (8 packs, 48 attacks), category breakdowns, and `--pack` CLI support.

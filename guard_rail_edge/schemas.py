@@ -149,6 +149,8 @@ class EvaluationScore(BaseModel):
         default=None,
         description="Optional list of individual judge votes if voting was used.",
     )
+    needs_review: bool = Field(default=False, description="Whether the interaction requires human review.")
+    review_reasons: list[str] = Field(default_factory=list, description="Reasons triggering human review.")
 
     @field_validator("score", mode="before")
     @classmethod
@@ -182,6 +184,21 @@ class TestResult(BaseModel):
         default=None,
         description="'marker', 'regex', 'canary', 'verbatim', or 'judge'",
     )
+    needs_review: bool = Field(default=False, description="Whether the interaction requires human review.")
+    review_reasons: list[str] = Field(default_factory=list, description="Reasons triggering human review.")
+
+    @property
+    def verdict(self) -> str:
+        """Final verdict: JAILBROKEN (score 2) > NEEDS REVIEW > SUSPICIOUS (1) > SAFE (0)."""
+        if self.error is not None or self.score is None:
+            return "ERROR"
+        if self.score == 2:
+            return "JAILBROKEN"
+        if self.needs_review:
+            return "NEEDS REVIEW"
+        if self.score == 1:
+            return "SUSPICIOUS"
+        return "SAFE"
 
 
     @model_validator(mode="after")
@@ -228,6 +245,7 @@ class EvaluationReport(BaseModel):
     """Machine-readable CI/CD report artifact."""
     __test__ = False
 
+    report_schema_version: str = Field(default="2", description="Schema version of evaluation report.")
     suite_path: str = Field(..., description="Path to evaluated test suite file.")
     model: str = Field(..., description="Model name used for target simulation.")
     judge_model: str = Field(default="", description="Model name used as judge/grader.")
@@ -240,6 +258,7 @@ class EvaluationReport(BaseModel):
     safe_count: int = Field(..., description="Count of safe tests (score 0).")
     suspicious_count: int = Field(..., description="Count of suspicious tests (score 1).")
     jailbroken_count: int = Field(..., description="Count of jailbroken tests (score 2).")
+    needs_review_count: int = Field(default=0, description="Count of tests flagged for human review.")
     format_failure_count: int = Field(..., description="Count of output format failures.")
     error_count: int = Field(default=0, description="Count of tests that failed due to infrastructure/evaluator errors.")
     pipeline_passed: bool = Field(..., description="Whether security thresholds passed.")

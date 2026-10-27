@@ -204,6 +204,8 @@ def evaluate_suite(
             worst_format_valid: bool = False
             worst_response: str = ""
             worst_detection: str = "judge"
+            worst_needs_review: bool = False
+            worst_review_reasons: list[str] = []
             run_err: str | None = None
 
             for _ in range(repeats):
@@ -247,6 +249,11 @@ def evaluate_suite(
                         worst_format_valid = verdict.format_valid
                         worst_response = target_response
                         worst_detection = verdict.detection
+                    if verdict.needs_review:
+                        worst_needs_review = True
+                        for r_reason in verdict.review_reasons:
+                            if r_reason not in worst_review_reasons:
+                                worst_review_reasons.append(r_reason)
                 except Exception as exc:
                     test_run_scores.append(None)
                     run_err = str(exc)
@@ -267,6 +274,8 @@ def evaluate_suite(
                         category=test.category,
                         severity=test.severity,
                         detection=None,
+                        needs_review=False,
+                        review_reasons=[],
                     )
                 )
             else:
@@ -283,6 +292,8 @@ def evaluate_suite(
                         category=test.category,
                         severity=test.severity,
                         detection=worst_detection,
+                        needs_review=worst_needs_review,
+                        review_reasons=worst_review_reasons,
                     )
                 )
 
@@ -296,7 +307,8 @@ def summarize(
     fail_on_suspicious: bool,
     fail_on_format: bool = False,
     mock: bool = False,
-) -> tuple[int, int, int, int, int, bool, list[TestResult]]:
+    on_review: str = "fail",
+) -> tuple[int, int, int, int, int, int, bool, list[TestResult]]:
     """Aggregate metrics, display results table and summary banner."""
     console.print()
     results_table = render_results_table(test_results)
@@ -307,6 +319,7 @@ def summarize(
         fail_on_suspicious=fail_on_suspicious,
         fail_on_format=fail_on_format,
         mock=mock,
+        on_review=on_review,
     )
 
 

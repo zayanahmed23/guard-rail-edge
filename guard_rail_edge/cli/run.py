@@ -151,6 +151,11 @@ def register_run_command(app: typer.Typer) -> None:
             "--fail-on-format",
             help="Fail pipeline (exit 1) if any test response violates output format constraints.",
         ),
+        on_review: str = typer.Option(
+            "fail",
+            "--on-review",
+            help="Policy for tests requiring review: 'fail' (exit 3) or 'warn' (report only, exit 0).",
+        ),
         judge_always: bool = typer.Option(
             False,
             "--judge-always",
@@ -197,6 +202,10 @@ def register_run_command(app: typer.Typer) -> None:
         ),
     ) -> None:
         """Run automated prompt injection tests against target LLM system prompts."""
+        if on_review not in ("fail", "warn"):
+            console.print(f"[bold red]Error:[/bold red] Invalid --on-review policy '{on_review}'. Must be 'fail' or 'warn'.")
+            sys.exit(2)
+
         if apply and not verify_patch and not force_apply:
             console.print("[bold red]Error:[/bold red] --apply with --no-verify-patch requires --force-apply to prevent writing unverified prompts.")
             sys.exit(2)
@@ -275,6 +284,7 @@ def register_run_command(app: typer.Typer) -> None:
             safe_count,
             suspicious_count,
             jailbroken_count,
+            needs_review_count,
             format_failure_count,
             error_count,
             pipeline_passed,
@@ -284,6 +294,7 @@ def register_run_command(app: typer.Typer) -> None:
             fail_on_suspicious=fail_on_suspicious,
             fail_on_format=fail_on_format,
             mock=mock,
+            on_review=on_review,
         )
 
         hardened_proposal: HardenedPromptProposal | None = None
@@ -381,20 +392,32 @@ def register_run_command(app: typer.Typer) -> None:
                 target_base_url=target_base_url,
                 judge_backend=judge_backend,
                 judge_base_url=judge_base_url,
+                needs_review_count=needs_review_count,
             )
 
-        # 10. Exit code contract
-        if applied_verified_prompt:
-            console.print("[bold green]CI/CD Guardrail Passed: Hardened prompt verified and applied successfully.[/bold green]")
-            sys.exit(0)
-
+        # 10. Exit code contract (Priority: 2 > 1 > 3 > 0)
         if error_count > 0:
             console.print("[bold magenta]CI/CD Evaluation Failed: Infrastructure or evaluator errors occurred.[/bold magenta]")
             sys.exit(2)
 
-        if not pipeline_passed:
+        has_vulnerabilities = (
+            jailbroken_count > 0
+            or (fail_on_suspicious and suspicious_count > 0)
+            or (fail_on_format and format_failure_count > 0)
+        )
+        if has_vulnerabilities:
+            if applied_verified_prompt:
+                console.print("[bold green]CI/CD Guardrail Passed: Hardened prompt verified and applied successfully.[/bold green]")
+                sys.exit(0)
             console.print("[bold red]CI/CD Guardrail Check Failed: Pipeline blocked until the proposed patch is reviewed and applied.[/bold red]")
             sys.exit(1)
+
+        if on_review == "fail" and needs_review_count > 0:
+            if applied_verified_prompt:
+                console.print("[bold green]CI/CD Guardrail Passed: Hardened prompt verified and applied successfully.[/bold green]")
+                sys.exit(0)
+            console.print("[bold yellow]CI/CD Guardrail Needs Review: Pipeline blocked due to unconfirmed items requiring human review.[/bold yellow]")
+            sys.exit(3)
 
         console.print("[bold green]CI/CD Guardrail Passed: All adversarial prompts handled safely.[/bold green]")
         sys.exit(0)

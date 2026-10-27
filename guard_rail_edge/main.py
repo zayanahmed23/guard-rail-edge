@@ -32,6 +32,7 @@ from guard_rail_edge.patcher import (
 from guard_rail_edge.render import (
     console,
     format_score_badge,
+    format_verdict_badge,
     render_evaluation_results,
     render_results_table,
     render_verification_table,
@@ -57,6 +58,7 @@ __all__ = [
     "create_unified_patch",
     "evaluate_suite",
     "format_score_badge",
+    "format_verdict_badge",
     "generate_hardened_prompt",
     "grade_interaction",
     "heal",
