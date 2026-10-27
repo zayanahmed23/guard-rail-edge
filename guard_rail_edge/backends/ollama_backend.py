@@ -114,3 +114,17 @@ class OllamaBackend(ChatBackend):
         ready_client = verify_fn(host=self.host, model_name=model, timeout=self.timeout)
         if ready_client is not None:
             self.client = ready_client
+
+    def get_digest(self, model: str) -> str | None:
+        try:
+            client = self.client or ollama.Client(host=self.host, timeout=self.timeout)
+            info = client.show(model)
+            if isinstance(info, dict):
+                details = info.get("details", {})
+                return str(info.get("digest") or details.get("parent_model") or "")
+            if hasattr(info, "digest"):
+                return str(info.digest)
+        except Exception:
+            pass
+        return None
+

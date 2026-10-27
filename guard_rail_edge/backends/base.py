@@ -36,3 +36,7 @@ class ChatBackend(ABC):
         """Check that the model and backend service are reachable."""
         ...
 
+    def get_digest(self, model: str) -> str | None:
+        """Optional model digest for caching (e.g. Ollama /api/show)."""
+        return None
+

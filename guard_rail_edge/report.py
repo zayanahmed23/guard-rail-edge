@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import guard_rail_edge
 from guard_rail_edge.patcher import write_text_exact
@@ -45,6 +46,8 @@ def write_report(
     auto_canary_used: bool = False,
     auto_canary_hash: str | None = None,
     auto_canary: str | None = None,
+    judge_cache_hits: int = 0,
+    debug_judge_failures: list[dict[str, Any]] | None = None,
 ) -> EvaluationReport:
     """Generate and write machine-readable CI/CD report JSON artifact."""
     final_results = []
@@ -105,6 +108,8 @@ def write_report(
         judge_detection_count=judge_det_count,
         auto_canary_used=auto_canary_used,
         auto_canary_hash=auto_canary_hash,
+        judge_cache_hits=judge_cache_hits,
+        debug_judge_failures=debug_judge_failures or [],
         packs=packs or [],
         results=final_results,
     )

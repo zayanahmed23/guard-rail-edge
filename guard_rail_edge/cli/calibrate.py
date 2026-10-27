@@ -19,6 +19,7 @@ from rich.progress import (
 from rich.table import Table
 from rich.text import Text
 
+from guard_rail_edge.cache import JudgeCache
 from guard_rail_edge.calibration import (
     compute_calibration_metrics,
     load_calibration_cases,
@@ -111,6 +112,9 @@ def register_calibrate_command(app: typer.Typer) -> None:
         checks_only: bool = typer.Option(False, "--checks-only", help="Run only deterministic and fuzzy overlap checks without LLM model."),
         overlap_threshold: float = typer.Option(0.25, "--overlap-threshold", help="Threshold for fuzzy overlap check routing to review (default: 0.25)."),
         no_overlap_check: bool = typer.Option(False, "--no-overlap-check", help="Disable fuzzy overlap check."),
+        judge_cache: Path = typer.Option(Path(".guard-rail-edge-cache"), "--judge-cache", help="Directory for caching raw judge LLM responses."),
+        no_cache: bool = typer.Option(False, "--no-cache", help="Bypass judge cache."),
+        debug_judge: bool = typer.Option(False, "--debug-judge", help="Print raw unparseable judge responses to stderr."),
     ) -> None:
         """Benchmark and calibrate judge model against expert-labeled ground truth dataset."""
         if disagreement_policy not in ("review", "max"):
@@ -139,6 +143,8 @@ def register_calibrate_command(app: typer.Typer) -> None:
             raise typer.Exit(code=2)
 
         overlap_check = not no_overlap_check
+        j_cache = JudgeCache(cache_dir=judge_cache, enabled=not no_cache)
+        debug_failures: list[dict[str, Any]] = []
         client = None
         second_client = None
         if not checks_only:
@@ -235,6 +241,11 @@ def register_calibrate_command(app: typer.Typer) -> None:
                             second_client=second_client,
                             second_model_name=second_judge_model,
                             disagreement_policy=disagreement_policy,
+                            judge_cache=j_cache,
+                            judge_backend=judge_backend,
+                            second_judge_backend=second_judge_backend,
+                            debug_judge=debug_judge,
+                            debug_failures=debug_failures,
                         )
                         res_item = {
                             "id": c.id, "split": c.split, "category": c.category,
@@ -251,7 +262,8 @@ def register_calibrate_command(app: typer.Typer) -> None:
                                 partial_data = {
                                     "judge_model": judge_model, "judge_backend": judge_backend,
                                     "second_judge_model": second_judge_model, "second_judge_backend": second_judge_backend,
-                                    "disagreement_policy": disagreement_policy,
+                                    "disagreement_policy": disagreement_policy, "judge_cache_hits": j_cache.hits,
+                                    "debug_judge_failures": debug_failures,
                                     "timestamp_utc": datetime.now(UTC).isoformat(), "results": results,
                                 }
                                 report_json.parent.mkdir(parents=True, exist_ok=True)
@@ -341,6 +353,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
         add_m_row("Judge Retries Used", lambda m: str(m["retries"]), "Lower is better")
         add_m_row("Overlap Flagged (Review)", lambda m: str(m.get("overlap_flagged", 0)), "Info (Needs Review)")
         add_m_row("Deterministic Detected", lambda m: str(m.get("deterministic_caught", 0)), "Score 2 (Code)")
+        add_m_row("Judge Cache Hits", lambda m: str(j_cache.hits), "Info (Cached)")
 
         console.print(summary_table)
         console.print()
@@ -359,7 +372,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
                     "disagreement_policy": disagreement_policy, "timestamp_utc": datetime.now(UTC).isoformat(),
                     "verdict": "CHECKS ONLY", "passed": True, "failed_thresholds": [],
                     "metrics_overall": metrics_overall, "metrics_dev": metrics_dev, "metrics_holdout": metrics_holdout,
-                    "results": results,
+                    "results": results, "judge_cache_hits": j_cache.hits, "debug_judge_failures": debug_failures,
                 }
                 report_json.parent.mkdir(parents=True, exist_ok=True)
                 report_json.write_text(json.dumps(checks_report_data, indent=2), encoding="utf-8")
@@ -394,6 +407,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
                 "timestamp_utc": datetime.now(UTC).isoformat(), "verdict": verdict_str, "passed": is_trustworthy,
                 "failed_thresholds": failed_thresholds, "metrics_overall": metrics_overall,
                 "metrics_dev": metrics_dev, "metrics_holdout": metrics_holdout, "results": results,
+                "judge_cache_hits": j_cache.hits, "debug_judge_failures": debug_failures,
             }
             report_json.parent.mkdir(parents=True, exist_ok=True)
             report_json.write_text(json.dumps(report_data, indent=2), encoding="utf-8")

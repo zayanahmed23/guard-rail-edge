@@ -151,6 +151,11 @@ def evaluate_suite(
     disagreement_policy: str = "review",
     overlap_check: bool = True,
     overlap_threshold: float = 0.25,
+    judge_cache: Any | None = None,
+    judge_backend: str = "ollama",
+    second_judge_backend: str = "ollama",
+    debug_judge: bool = False,
+    debug_failures: list[dict[str, Any]] | None = None,
 ) -> tuple[list[TestResult], int]:
     """Evaluate a list of adversarial tests against a system prompt with repeat runs and worst-case aggregation."""
     tests_list = tests or []
@@ -193,6 +198,11 @@ def evaluate_suite(
         ("second_client", second_judge_client),
         ("second_model_name", second_judge_model),
         ("disagreement_policy", disagreement_policy),
+        ("judge_cache", judge_cache),
+        ("judge_backend", judge_backend),
+        ("second_judge_backend", second_judge_backend),
+        ("debug_judge", debug_judge),
+        ("debug_failures", debug_failures),
     ]
     try:
         import inspect

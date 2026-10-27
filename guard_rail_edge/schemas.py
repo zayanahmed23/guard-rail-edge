@@ -286,6 +286,8 @@ class EvaluationReport(BaseModel):
     judge_detection_count: int = Field(default=0, description="Count of verdicts determined by LLM judge.")
     auto_canary_used: bool = Field(default=False, description="Whether automatic per-run canary was enabled.")
     auto_canary_hash: str | None = Field(default=None, description="SHA-256 hash of the per-run canary if used.")
+    judge_cache_hits: int = Field(default=0, description="Count of judge calls retrieved from cache.")
+    debug_judge_failures: list[dict[str, Any]] = Field(default_factory=list, description="Raw judge responses that failed parsing.")
     packs: list[str] = Field(default_factory=list, description="List of attack packs included in this evaluation.")
     results: list[TestResult] = Field(default_factory=list, description="Array of individual test results.")
 

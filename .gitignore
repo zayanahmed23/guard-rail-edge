@@ -93,5 +93,5 @@ RUN_REPORT.md
 # Scratch directories
 scratch/
 
-
-
+# Judge cache
+.guard-rail-edge-cache/

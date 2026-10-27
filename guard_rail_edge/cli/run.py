@@ -1,11 +1,13 @@
 import hashlib
 import sys
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.panel import Panel
 from rich.text import Text
 
+from guard_rail_edge.cache import JudgeCache
 from guard_rail_edge.cli.helpers import (
     assemble_final_tests,
     setup_evaluation_clients,
@@ -66,6 +68,9 @@ def register_run_command(app: typer.Typer) -> None:
         judge_always: bool = typer.Option(False, "--judge-always", help="Run judge even when deterministic checks fire."),
         overlap_check: bool = typer.Option(True, "--overlap-check/--no-overlap-check", help="Enable fuzzy overlap leak detection."),
         overlap_threshold: float = typer.Option(0.25, "--overlap-threshold", help="Threshold for fuzzy overlap check."),
+        judge_cache: Path | None = typer.Option(None, "--judge-cache", help="Directory for caching raw judge LLM responses."),
+        no_cache: bool = typer.Option(False, "--no-cache", help="Bypass judge cache."),
+        debug_judge: bool = typer.Option(False, "--debug-judge", help="Print raw unparseable judge responses to stderr."),
         pack: list[str] | None = typer.Option(None, "--pack", help="Built-in attack pack to include (repeatable/all)."),
         exclude: list[str] | None = typer.Option(None, "--exclude", help="Attack ID to exclude (repeatable)."),
         min_severity: str | None = typer.Option(None, "--min-severity", help="Minimum severity: low, medium, or high."),
@@ -146,6 +151,8 @@ def register_run_command(app: typer.Typer) -> None:
         auto_canary_hash = (
             hashlib.sha256(per_run_canary.encode("utf-8")).hexdigest() if per_run_canary else None
         )
+        j_cache = JudgeCache(cache_dir=judge_cache, enabled=(judge_cache is not None and not no_cache))
+        debug_failures: list[dict[str, Any]] = []
         test_results, total_judge_retries = evaluate_suite(
             target_client=target_client,
             judge_client=judge_client,
@@ -168,6 +175,11 @@ def register_run_command(app: typer.Typer) -> None:
             judge_votes=judge_votes,
             overlap_check=overlap_check,
             overlap_threshold=overlap_threshold,
+            judge_cache=j_cache,
+            judge_backend=judge_backend,
+            second_judge_backend=second_judge_backend,
+            debug_judge=debug_judge,
+            debug_failures=debug_failures,
         )
 
         # 5. Summarize
@@ -282,6 +294,8 @@ def register_run_command(app: typer.Typer) -> None:
                 auto_canary_used=auto_canary,
                 auto_canary_hash=auto_canary_hash,
                 auto_canary=per_run_canary,
+                judge_cache_hits=j_cache.hits,
+                debug_judge_failures=debug_failures,
             )
 
         # 10. Exit code contract (Priority: 2 > 1 > 3 > 0)
