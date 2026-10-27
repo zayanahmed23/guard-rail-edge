@@ -72,11 +72,28 @@ def render_confusion_matrix_table(matrix: dict[int, dict[int, int]]) -> Table:
     return table
 
 
-def _setup_client(backend: str, model: str, base_url: str | None, host: str, timeout: float, api_key_env: str) -> Any:
+def _setup_client(
+    backend: str,
+    model: str,
+    base_url: str | None,
+    host: str,
+    timeout: float,
+    api_key_env: str,
+    max_rpm: int | None = None,
+) -> Any:
     """Initialize client and run preflight, exiting cleanly on failure."""
     from guard_rail_edge.backends import get_backend
 
-    client = get_backend(backend_type=backend, model=model, base_url=base_url, host=host, timeout=timeout, api_key_env=api_key_env, mock=False)
+    client = get_backend(
+        backend_type=backend,
+        model=model,
+        base_url=base_url,
+        host=host,
+        timeout=timeout,
+        api_key_env=api_key_env,
+        mock=False,
+        max_rpm=max_rpm,
+    )
     try:
         client.preflight(model)
         return client
@@ -105,6 +122,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
         second_judge_base_url: str | None = typer.Option(None, "--second-judge-base-url", help="Base URL for secondary judge backend."),
         disagreement_policy: str = typer.Option("review", "--disagreement-policy", help="Disagreement policy: 'review' or 'max'."),
         api_key_env: str = typer.Option("OPENAI_API_KEY", "--api-key-env", help="Env var name containing API key for OpenAI-compatible backend."),
+        max_rpm: int | None = typer.Option(None, "--max-rpm", help="Maximum requests per minute throttle (defaults to provider preset)."),
         seed: int | None = typer.Option(None, "--seed", help="Random seed for reproducible evaluations."),
         cases: Path | None = typer.Option(None, "--cases", help="Path to custom calibration cases JSON file."),
         report_json: Path | None = typer.Option(None, "--report-json", help="Path to write machine-readable calibration report JSON."),
@@ -155,9 +173,9 @@ def register_calibrate_command(app: typer.Typer) -> None:
                 if second_judge_model:
                     second_client = get_mock_calibration_backend(calibration_cases, model=second_judge_model)
             else:
-                client = _setup_client(judge_backend, judge_model, judge_base_url, host, timeout, api_key_env)
+                client = _setup_client(judge_backend, judge_model, judge_base_url, host, timeout, api_key_env, max_rpm=max_rpm)
                 if second_judge_model:
-                    second_client = _setup_client(second_judge_backend, second_judge_model, second_judge_base_url, host, timeout, api_key_env)
+                    second_client = _setup_client(second_judge_backend, second_judge_model, second_judge_base_url, host, timeout, api_key_env, max_rpm=max_rpm)
 
         results: list[dict[str, Any]] = []
         existing_results: dict[str, dict[str, Any]] = {}

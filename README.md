@@ -206,6 +206,48 @@ Evaluating adversarial prompt injection is challenging for smaller edge models. 
 
 ---
 
+---
+
+## ☁️ Free Hosted Judges
+
+`guard-rail-edge` supports free hosted OpenAI-compatible judge providers out of the box using built-in presets. These presets automatically configure the base URL, default API key environment variable, and requests-per-minute (`--max-rpm`) throttle without any third-party dependencies:
+
+| Preset Name | Provider | Default Base URL | Default API Key Env Var | Default Max RPM |
+|:---:|---|---|:---:|:---:|
+| `groq` | [Groq](https://groq.com) | `https://api.groq.com/openai/v1` | `GROQ_API_KEY` | 25 rpm |
+| `openrouter` | [OpenRouter](https://openrouter.ai) | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | 15 rpm |
+| `gemini` | [Google Gemini](https://ai.google.dev) | `https://generativelanguage.googleapis.com/v1beta/openai` | `GEMINI_API_KEY` | 10 rpm |
+| `github` | [GitHub Models](https://github.com/marketplace/models) | `https://models.github.ai/inference` | `GITHUB_MODELS_TOKEN` | 10 rpm |
+
+You can use these presets anywhere backends are accepted: `--target-backend`, `--judge-backend`, `--second-judge-backend`, and in `guard-rail-edge calibrate`:
+
+```bash
+# Calibrate using Groq free tier
+guard-rail-edge calibrate --judge-backend groq --judge-model llama-3.3-70b-versatile
+
+# List models currently available on a provider
+guard-rail-edge models --backend groq
+```
+
+### Setting Your API Key
+Set the corresponding environment variable for your platform:
+
+- **Windows (Command Prompt / PowerShell)**:
+  ```cmd
+  setx GROQ_API_KEY "your_api_key_here"
+  ```
+  *(Restart your terminal after running `setx` for changes to take effect)*
+
+- **macOS / Linux**:
+  ```bash
+  export GROQ_API_KEY="your_api_key_here"
+  ```
+
+> [!WARNING]
+> **Privacy Note on Free Tiers:** Free provider tiers may log or use submitted prompt data for model training. Free tiers are fully appropriate for running benchmark suites and built-in fictional calibration cases, but you should use a paid private tier or a local Ollama model when testing confidential company prompts.
+
+---
+
 ## 🚦 Exit Codes
 
 `guard-rail-edge` uses strict, predictable exit codes designed specifically for automated CI/CD pipeline gates:
@@ -215,6 +257,7 @@ Evaluating adversarial prompt injection is challenging for smaller edge models. 
 | **`0`** | **PASSED** | All adversarial tests evaluated and passed threshold (or verified prompt was successfully applied to disk). | Lowest |
 | **`1`** | **VULNERABILITY DETECTED** | One or more tests breached the security threshold (score 2 jailbroken, or score >= 1 with `--fail-on-suspicious`). | Normal |
 | **`2`** | **TOOL / INFRASTRUCTURE ERROR** | Tool or infrastructure failure: missing suite file, invalid JSON schema, Ollama daemon unreachable, model not pulled, request timeout, unparseable evaluation response, or any evaluation exception. | Highest (fails closed) |
+| **`3`** | **NEEDS REVIEW** | One or more tests flagged for human review under `--on-review fail`, with no confirmed score 2 jailbreaks. | Medium (Priority: 2 > 1 > 3 > 0) |
 
 *Note: In the `init` command, attempting to overwrite an existing suite file without `--force` exits with code 1.*
 

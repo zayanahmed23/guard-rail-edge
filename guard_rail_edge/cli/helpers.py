@@ -114,6 +114,7 @@ def setup_evaluation_clients(
     second_judge_backend: str = "ollama",
     second_judge_model: str | None = None,
     second_judge_base_url: str | None = None,
+    max_rpm: int | None = None,
 ) -> tuple[ChatBackend, ChatBackend, ChatBackend, ChatBackend | None]:
     """Initialize and run preflight checks for target, judge, patcher, and optional second judge clients."""
     from guard_rail_edge.backends import get_backend
@@ -140,6 +141,7 @@ def setup_evaluation_clients(
         timeout=timeout,
         api_key_env=api_key_env,
         mock=False,
+        max_rpm=max_rpm,
     )
     judge_client = get_backend(
         backend_type=judge_backend,
@@ -149,6 +151,7 @@ def setup_evaluation_clients(
         timeout=timeout,
         api_key_env=api_key_env,
         mock=False,
+        max_rpm=max_rpm,
     )
     if actual_patch_model == actual_judge_model:
         patch_client = judge_client
@@ -161,6 +164,7 @@ def setup_evaluation_clients(
             timeout=timeout,
             api_key_env=api_key_env,
             mock=False,
+            max_rpm=max_rpm,
         )
 
     if second_judge_model:
@@ -172,6 +176,7 @@ def setup_evaluation_clients(
             timeout=timeout,
             api_key_env=api_key_env,
             mock=False,
+            max_rpm=max_rpm,
         )
 
     models_to_check: list[tuple[ChatBackend, str]] = [

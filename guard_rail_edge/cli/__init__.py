@@ -7,6 +7,7 @@ from guard_rail_edge.cli.attacks import register_attacks_commands
 from guard_rail_edge.cli.calibrate import register_calibrate_command
 from guard_rail_edge.cli.helpers import version_callback
 from guard_rail_edge.cli.init import register_init_command
+from guard_rail_edge.cli.models import register_models_command
 from guard_rail_edge.cli.run import register_run_command
 
 
@@ -45,6 +46,7 @@ def create_app() -> typer.Typer:
     register_init_command(app)
     register_attacks_commands(app)
     register_calibrate_command(app)
+    register_models_command(app)
 
     return app
 

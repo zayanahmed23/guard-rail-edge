@@ -50,6 +50,7 @@ def register_run_command(app: typer.Typer) -> None:
         second_judge_base_url: str | None = typer.Option(None, "--second-judge-base-url", help="Base URL for second judge backend."),
         disagreement_policy: str = typer.Option("review", "--disagreement-policy", help="Disagreement policy: 'review' or 'max'."),
         api_key_env: str = typer.Option("OPENAI_API_KEY", "--api-key-env", help="Env var name for OpenAI-compatible API key."),
+        max_rpm: int | None = typer.Option(None, "--max-rpm", help="Maximum requests per minute throttle."),
         host: str = typer.Option("http://localhost:11434", "--host", help="Ollama server host URL."),
         timeout: float = typer.Option(120.0, "--timeout", help="Timeout in seconds for API requests."),
         judge_retries: int = typer.Option(2, "--judge-retries", min=0, help="Max retries for unparseable judge responses."),
@@ -144,6 +145,7 @@ def register_run_command(app: typer.Typer) -> None:
             second_judge_backend=second_judge_backend,
             second_judge_model=second_judge_model,
             second_judge_base_url=second_judge_base_url,
+            max_rpm=max_rpm,
         )
 
         # 4. Evaluation

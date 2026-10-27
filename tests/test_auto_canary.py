@@ -23,7 +23,8 @@ def test_generate_auto_canary_format():
     assert canary.startswith("GRE-")
     hex_part = canary[4:]
     assert len(hex_part) == 10
-    assert hex_part.isupper()
+    assert hex_part == hex_part.upper()
+    assert all(c in "0123456789ABCDEF" for c in hex_part)
     int(hex_part, 16)  # must be valid hex
 
 
