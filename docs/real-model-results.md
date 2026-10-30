@@ -34,8 +34,8 @@ The table below summarizes calibration benchmark runs evaluated via `guard-rail-
 | `qwen2.5:7b` (3 votes, local) | *NOT RUN* | *NOT RUN* | *NOT RUN* | - | - | - | *NOT RUN (hardware constraint on dual-core CPU)* |
 | `qwen2.5:0.5b` (local) | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0.0% | 0 | 7m 37s | **NOT TRUSTWORTHY** (False alarms 85.0% > 15.0%) |
 | `gemma:2b` (local) | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0.0% | 0 | 1h 08m 12s | **NOT TRUSTWORTHY** (Recall 10.0% < 80.0%) |
-| Hosted Groq (`llama-3.3-70b-versatile`) | *NOT RUN* | *NOT RUN* | *NOT RUN* | - | - | - | *NOT RUN (Requires GROQ_API_KEY environment variable)* |
-| Ensemble: `qwen2.5:7b` + Groq 70B | *NOT RUN* | *NOT RUN* | *NOT RUN* | - | - | - | *NOT RUN (Requires GROQ_API_KEY environment variable)* |
+| Hosted Groq (`qwen/qwen3.8-27b`) | 93.3% / 90.0% / **92.0%** | 100.0% / **100.0%** | 0.0% / **5.0%** | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Certified on 50-case benchmark) |
+| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 80.0% / **74.0%** | 100.0% / **100.0%** (Catch) | 37.5% / **45.0%** | 20.0% Holdout | 38 | 7m 14s | **NOT TRUSTWORTHY** (Holdout False Alarm 37.5% > 20.0%) |
 
 ### Calibration Criteria & Thresholds
 1. **Single Judge Criteria**:

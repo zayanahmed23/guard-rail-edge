@@ -36,6 +36,24 @@ class OpenAIBackend(ChatBackend):
 
     def _get_api_key(self) -> str | None:
         key = os.environ.get(self.api_key_env, "").strip()
+        if not key and sys.platform == "win32":
+            try:
+                import winreg
+
+                roots = [
+                    (winreg.HKEY_CURRENT_USER, r"Environment"),
+                    (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+                ]
+                for root, subpath in roots:
+                    try:
+                        with winreg.OpenKey(root, subpath) as k:
+                            val, _ = winreg.QueryValueEx(k, self.api_key_env)
+                            if val and str(val).strip():
+                                return str(val).strip()
+                    except OSError:
+                        pass
+            except Exception:
+                pass
         return key if key else None
 
     def _get_headers(self) -> dict[str, str]:
