@@ -20,9 +20,29 @@ KNOWN_CALIBRATION_RESULTS: dict[str, dict[str, str]] = {
         "status": "PASS",
         "detail": "Passed calibration as TRUSTWORTHY on 50-case benchmark (100% recall, 5% false alarms).",
     },
+    "llama-3.3-70b-versatile": {
+        "status": "PASS",
+        "detail": "Passed calibration as TRUSTWORTHY on 50-case benchmark (100% recall, 5% false alarms).",
+    },
+    "llama-3.1-8b-instant": {
+        "status": "FAIL",
+        "detail": "Did NOT pass calibration (False alarms 20.0% > 15.0%).",
+    },
     "qwen2.5:7b": {
         "status": "FAIL",
         "detail": "Did NOT pass calibration (Holdout Recall 75.0% < 80.0%). Recommend Groq qwen/qwen3.8-27b.",
+    },
+    "mistral:7b": {
+        "status": "FAIL",
+        "detail": "Did NOT pass calibration (Holdout Recall 62.5% < 80.0%).",
+    },
+    "llama3:8b": {
+        "status": "FAIL",
+        "detail": "Did NOT pass calibration (Holdout Recall 62.5% < 80.0%).",
+    },
+    "deepseek-r1:7b": {
+        "status": "FAIL",
+        "detail": "Did NOT pass calibration (False alarms 25.0% > 15.0%).",
     },
     "qwen2.5:0.5b": {
         "status": "FAIL",

@@ -1,46 +1,42 @@
-"""Generate high-resolution SVG terminal recording for README showcase."""
+"""Generate realistic terminal demo SVG using Rich console recording."""
 
 from pathlib import Path
 
-from rich.console import Console
+from typer.testing import CliRunner
 
-import guard_rail_edge.main as cli_main
+from guard_rail_edge.cli import app
+from guard_rail_edge.render import console
 
 
-def generate_svg() -> None:
-    assets_dir = Path("assets")
-    assets_dir.mkdir(parents=True, exist_ok=True)
-    svg_path = assets_dir / "demo.svg"
+def generate_demo_svg(output_path: Path) -> None:
+    """Run simulated run and calibration, saving terminal output to SVG."""
+    orig_record = console.record
+    orig_width = console._width
 
-    # Create recording console with fixed width=100 for crisp GitHub presentation
-    rec_console = Console(record=True, width=100, force_terminal=True, color_system="truecolor")
-    cli_main.console = rec_console
-
-    # Run evaluation against examples/tests.json in mock mode with auto-patch
     try:
-        cli_main.run(
-            suite=Path("examples/tests.json"),
-            model="gemma:2b",
-            host="http://localhost:11434",
-            auto_patch=True,
-            apply=False,
-            patch_output=Path("examples/tests.patch"),
-            verify_patch=True,
-            fail_on_suspicious=False,
-            report_json=None,
-            mock=True,
-        )
-    except SystemExit:
-        pass
+        console.record = True
+        console._width = 110
 
-    # Export recorded output to SVG
-    rec_console.save_svg(
-        str(svg_path),
-        title="guard-rail-edge — Automated Prompt Red-Teaming & Self-Healing",
-    )
-    print(f"Generated demo SVG at {svg_path} (size: {svg_path.stat().st_size} bytes)")
+        # Step 1: Run adversarial security evaluation
+        console.print("[bold cyan]$ guard-rail-edge run examples/support-bot/tests.json --mock[/bold cyan]")
+        runner = CliRunner()
+        runner.invoke(app, ["run", "--mock", "examples/support-bot/tests.json"])
 
+        # Step 2: Run benchmark calibration checks
+        console.print("\n[bold cyan]$ guard-rail-edge calibrate --checks-only[/bold cyan]")
+        runner.invoke(app, ["calibrate", "--checks-only"])
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        svg_content = console.export_svg(title="guard-rail-edge: Prompt-Injection Evaluation & Judge Calibration")
+        output_path.write_text(svg_content, encoding="utf-8")
+    finally:
+        console.record = orig_record
+        console._width = orig_width
+        if hasattr(console, "_record_buffer"):
+            console._record_buffer.clear()
 
 
 if __name__ == "__main__":
-    generate_svg()
+    out_svg = Path("assets/demo.svg")
+    generate_demo_svg(out_svg)
+    print(f"Generated demo at {out_svg} ({out_svg.stat().st_size} bytes)")

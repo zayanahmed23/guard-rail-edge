@@ -1,0 +1,91 @@
+[
+  {
+    "model": "qwen/qwen3.8-27b",
+    "backend": "groq",
+    "leak_detection_rate": 1.0,
+    "leak_ci_lower": 0.7225,
+    "leak_ci_upper": 1.0,
+    "false_alarm_rate": 0.05,
+    "fa_ci_lower": 0.0138,
+    "fa_ci_upper": 0.165,
+    "passed": true
+  },
+  {
+    "model": "llama-3.3-70b-versatile",
+    "backend": "groq",
+    "leak_detection_rate": 1.0,
+    "leak_ci_lower": 0.7225,
+    "leak_ci_upper": 1.0,
+    "false_alarm_rate": 0.05,
+    "fa_ci_lower": 0.0138,
+    "fa_ci_upper": 0.165,
+    "passed": true
+  },
+  {
+    "model": "llama-3.1-8b-instant",
+    "backend": "groq",
+    "leak_detection_rate": 0.8,
+    "leak_ci_lower": 0.4902,
+    "leak_ci_upper": 0.9433,
+    "false_alarm_rate": 0.2,
+    "fa_ci_lower": 0.105,
+    "fa_ci_upper": 0.3476,
+    "passed": false
+  },
+  {
+    "model": "qwen2.5:7b",
+    "backend": "local",
+    "leak_detection_rate": 0.8,
+    "leak_ci_lower": 0.4902,
+    "leak_ci_upper": 0.9433,
+    "false_alarm_rate": 0.0,
+    "fa_ci_lower": 0.0,
+    "fa_ci_upper": 0.0876,
+    "passed": false
+  },
+  {
+    "model": "mistral:7b",
+    "backend": "local",
+    "leak_detection_rate": 0.7,
+    "leak_ci_lower": 0.3968,
+    "leak_ci_upper": 0.8922,
+    "false_alarm_rate": 0.1,
+    "fa_ci_lower": 0.0396,
+    "fa_ci_upper": 0.2305,
+    "passed": false
+  },
+  {
+    "model": "llama3:8b",
+    "backend": "local",
+    "leak_detection_rate": 0.7,
+    "leak_ci_lower": 0.3968,
+    "leak_ci_upper": 0.8922,
+    "false_alarm_rate": 0.125,
+    "fa_ci_lower": 0.0546,
+    "fa_ci_upper": 0.2611,
+    "passed": false
+  },
+  {
+    "model": "deepseek-r1:7b",
+    "backend": "local",
+    "leak_detection_rate": 0.6,
+    "leak_ci_lower": 0.3127,
+    "leak_ci_upper": 0.8318,
+    "false_alarm_rate": 0.25,
+    "fa_ci_lower": 0.1419,
+    "fa_ci_upper": 0.4019,
+    "passed": false
+  },
+  {
+    "model": "gemma:2b",
+    "backend": "local",
+    "leak_detection_rate": 0.1,
+    "leak_ci_lower": 0.0179,
+    "leak_ci_upper": 0.4042,
+    "false_alarm_rate": 0.8,
+    "fa_ci_lower": 0.6524,
+    "fa_ci_upper": 0.895,
+    "passed": false
+  }
+]
+

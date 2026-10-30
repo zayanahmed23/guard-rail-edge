@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 23px; font-weight: 700; fill: #f0f6fc; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 15px; fill: #8b949e; }
+      .footer { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; fill: #6e7681; }
+      .axis-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 12px; fill: #8b949e; text-anchor: end; }
+      .model-name { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 600; fill: #e6edf3; text-anchor: middle; }
+      .model-backend { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; fill: #7d8590; text-anchor: middle; }
+      .badge-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10px; font-weight: 700; text-anchor: middle; }
+      .legend-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 12px; fill: #c9d1d9; }
+      .bar-val { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10px; font-weight: 600; text-anchor: middle; }
+    </style>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="pass-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#238636" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#238636" stop-opacity="0.04"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg-grad)"/>
+  <rect x="1" y="1" width="1198" height="673" rx="8" fill="none" stroke="#30363d" stroke-width="1.5"/>
+
+  <text x="90" y="48" class="title">Judge Calibration: Leak Detection vs False Alarm Rate (50 cases)</text>
+  <text x="90" y="74" class="subtitle">Only 2 of 8 models passed calibration. Small local models fail silently.</text>
+  <g id="legend">
+    <rect x="710" y="36" width="16" height="12" rx="3" fill="#38bdf8"/>
+    <text x="732" y="46" class="legend-text">Leak Detection Rate</text>
+
+    <rect x="880" y="36" width="16" height="12" rx="3" fill="#f87171"/>
+    <text x="902" y="46" class="legend-text">False Alarm Rate</text>
+
+    <line x1="710" y1="68" x2="726" y2="68" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,3"/>
+    <text x="732" y="72" class="legend-text" fill="#22c55e">Min Catch (>=80%)</text>
+
+    <line x1="880" y1="68" x2="896" y2="68" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
+    <text x="902" y="72" class="legend-text">Max FA (<=15%)</text>
+  </g>
+  <line x1="90" y1="560.0" x2="1110" y2="560.0" stroke="#21262d" stroke-width="1"/>
+  <text x="78" y="564.0" class="axis-label">0%</text>
+  <line x1="90" y1="475.0" x2="1110" y2="475.0" stroke="#21262d" stroke-width="1"/>
+  <text x="78" y="479.0" class="axis-label">20%</text>
+  <line x1="90" y1="390.0" x2="1110" y2="390.0" stroke="#21262d" stroke-width="1"/>
+  <text x="78" y="394.0" class="axis-label">40%</text>
+  <line x1="90" y1="305.0" x2="1110" y2="305.0" stroke="#21262d" stroke-width="1"/>
+  <text x="78" y="309.0" class="axis-label">60%</text>
+  <line x1="90" y1="220.0" x2="1110" y2="220.0" stroke="#21262d" stroke-width="1"/>
+  <text x="78" y="224.0" class="axis-label">80%</text>
+  <line x1="90" y1="135.0" x2="1110" y2="135.0" stroke="#21262d" stroke-width="1"/>
+  <text x="78" y="139.0" class="axis-label">100%</text>
+  <line x1="90" y1="220.0" x2="1110" y2="220.0" stroke="#22c55e" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="1118" y="224.0" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#22c55e">80% Target</text>
+  <line x1="90" y1="496.2" x2="1110" y2="496.2" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="1118" y="500.2" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#ef4444">15% Max FA</text>
+  <rect x="94.0" y="125.0" width="119.5" height="440.0" rx="6" fill="url(#pass-grad)" stroke="#238636" stroke-width="1.2" stroke-dasharray="3,3"/>
+  <rect x="121.8" y="107.0" width="64" height="17" rx="8" fill="#238636"/>
+  <text x="153.8" y="119.0" class="badge-text" fill="#ffffff">PASSED</text>
+  <rect x="120.8" y="135.0" width="30" height="425.0" rx="3" fill="#38bdf8"/>
+  <line x1="135.8" y1="135.0" x2="135.8" y2="252.9" stroke="#0369a1" stroke-width="2"/>
+  <line x1="130.8" y1="135.0" x2="140.8" y2="135.0" stroke="#0369a1" stroke-width="2"/>
+  <line x1="130.8" y1="252.9" x2="140.8" y2="252.9" stroke="#0369a1" stroke-width="2"/>
+  <rect x="156.8" y="538.8" width="30" height="21.2" rx="3" fill="#f87171"/>
+  <line x1="171.8" y1="489.9" x2="171.8" y2="554.1" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="166.8" y1="489.9" x2="176.8" y2="489.9" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="166.8" y1="554.1" x2="176.8" y2="554.1" stroke="#b91c1c" stroke-width="2"/>
+  <text x="153.8" y="582.0" class="model-name">qwen3.8-27b</text>
+  <text x="153.8" y="598.0" class="model-backend">(groq)</text>
+  <rect x="221.5" y="125.0" width="119.5" height="440.0" rx="6" fill="url(#pass-grad)" stroke="#238636" stroke-width="1.2" stroke-dasharray="3,3"/>
+  <rect x="249.2" y="107.0" width="64" height="17" rx="8" fill="#238636"/>
+  <text x="281.2" y="119.0" class="badge-text" fill="#ffffff">PASSED</text>
+  <rect x="248.2" y="135.0" width="30" height="425.0" rx="3" fill="#38bdf8"/>
+  <line x1="263.2" y1="135.0" x2="263.2" y2="252.9" stroke="#0369a1" stroke-width="2"/>
+  <line x1="258.2" y1="135.0" x2="268.2" y2="135.0" stroke="#0369a1" stroke-width="2"/>
+  <line x1="258.2" y1="252.9" x2="268.2" y2="252.9" stroke="#0369a1" stroke-width="2"/>
+  <rect x="284.2" y="538.8" width="30" height="21.2" rx="3" fill="#f87171"/>
+  <line x1="299.2" y1="489.9" x2="299.2" y2="554.1" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="294.2" y1="489.9" x2="304.2" y2="489.9" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="294.2" y1="554.1" x2="304.2" y2="554.1" stroke="#b91c1c" stroke-width="2"/>
+  <text x="281.2" y="582.0" class="model-name">llama-3.3-70b-versatile</text>
+  <text x="281.2" y="598.0" class="model-backend">(groq)</text>
+  <rect x="375.8" y="220.0" width="30" height="340.0" rx="3" fill="#38bdf8"/>
+  <line x1="390.8" y1="159.1" x2="390.8" y2="351.7" stroke="#0369a1" stroke-width="2"/>
+  <line x1="385.8" y1="159.1" x2="395.8" y2="159.1" stroke="#0369a1" stroke-width="2"/>
+  <line x1="385.8" y1="351.7" x2="395.8" y2="351.7" stroke="#0369a1" stroke-width="2"/>
+  <rect x="411.8" y="475.0" width="30" height="85.0" rx="3" fill="#f87171"/>
+  <line x1="426.8" y1="412.3" x2="426.8" y2="515.4" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="421.8" y1="412.3" x2="431.8" y2="412.3" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="421.8" y1="515.4" x2="431.8" y2="515.4" stroke="#b91c1c" stroke-width="2"/>
+  <text x="408.8" y="582.0" class="model-name">llama-3.1-8b-instant</text>
+  <text x="408.8" y="598.0" class="model-backend">(groq)</text>
+  <rect x="503.2" y="220.0" width="30" height="340.0" rx="3" fill="#38bdf8"/>
+  <line x1="518.2" y1="159.1" x2="518.2" y2="351.7" stroke="#0369a1" stroke-width="2"/>
+  <line x1="513.2" y1="159.1" x2="523.2" y2="159.1" stroke="#0369a1" stroke-width="2"/>
+  <line x1="513.2" y1="351.7" x2="523.2" y2="351.7" stroke="#0369a1" stroke-width="2"/>
+  <rect x="539.2" y="560.0" width="30" height="0.0" rx="3" fill="#f87171"/>
+  <line x1="554.2" y1="522.8" x2="554.2" y2="560.0" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="549.2" y1="522.8" x2="559.2" y2="522.8" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="549.2" y1="560.0" x2="559.2" y2="560.0" stroke="#b91c1c" stroke-width="2"/>
+  <text x="536.2" y="582.0" class="model-name">qwen2.5:7b</text>
+  <text x="536.2" y="598.0" class="model-backend">(local)</text>
+  <rect x="630.8" y="262.5" width="30" height="297.5" rx="3" fill="#38bdf8"/>
+  <line x1="645.8" y1="180.8" x2="645.8" y2="391.4" stroke="#0369a1" stroke-width="2"/>
+  <line x1="640.8" y1="180.8" x2="650.8" y2="180.8" stroke="#0369a1" stroke-width="2"/>
+  <line x1="640.8" y1="391.4" x2="650.8" y2="391.4" stroke="#0369a1" stroke-width="2"/>
+  <rect x="666.8" y="517.5" width="30" height="42.5" rx="3" fill="#f87171"/>
+  <line x1="681.8" y1="462.0" x2="681.8" y2="543.2" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="676.8" y1="462.0" x2="686.8" y2="462.0" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="676.8" y1="543.2" x2="686.8" y2="543.2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="663.8" y="582.0" class="model-name">mistral:7b</text>
+  <text x="663.8" y="598.0" class="model-backend">(local)</text>
+  <rect x="758.2" y="262.5" width="30" height="297.5" rx="3" fill="#38bdf8"/>
+  <line x1="773.2" y1="180.8" x2="773.2" y2="391.4" stroke="#0369a1" stroke-width="2"/>
+  <line x1="768.2" y1="180.8" x2="778.2" y2="180.8" stroke="#0369a1" stroke-width="2"/>
+  <line x1="768.2" y1="391.4" x2="778.2" y2="391.4" stroke="#0369a1" stroke-width="2"/>
+  <rect x="794.2" y="506.9" width="30" height="53.1" rx="3" fill="#f87171"/>
+  <line x1="809.2" y1="449.0" x2="809.2" y2="536.8" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="804.2" y1="449.0" x2="814.2" y2="449.0" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="804.2" y1="536.8" x2="814.2" y2="536.8" stroke="#b91c1c" stroke-width="2"/>
+  <text x="791.2" y="582.0" class="model-name">llama3:8b</text>
+  <text x="791.2" y="598.0" class="model-backend">(local)</text>
+  <rect x="885.8" y="305.0" width="30" height="255.0" rx="3" fill="#38bdf8"/>
+  <line x1="900.8" y1="206.5" x2="900.8" y2="427.1" stroke="#0369a1" stroke-width="2"/>
+  <line x1="895.8" y1="206.5" x2="905.8" y2="206.5" stroke="#0369a1" stroke-width="2"/>
+  <line x1="895.8" y1="427.1" x2="905.8" y2="427.1" stroke="#0369a1" stroke-width="2"/>
+  <rect x="921.8" y="453.8" width="30" height="106.2" rx="3" fill="#f87171"/>
+  <line x1="936.8" y1="389.2" x2="936.8" y2="499.7" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="931.8" y1="389.2" x2="941.8" y2="389.2" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="931.8" y1="499.7" x2="941.8" y2="499.7" stroke="#b91c1c" stroke-width="2"/>
+  <text x="918.8" y="582.0" class="model-name">deepseek-r1:7b</text>
+  <text x="918.8" y="598.0" class="model-backend">(local)</text>
+  <rect x="1013.2" y="517.5" width="30" height="42.5" rx="3" fill="#38bdf8"/>
+  <line x1="1028.2" y1="388.2" x2="1028.2" y2="552.4" stroke="#0369a1" stroke-width="2"/>
+  <line x1="1023.2" y1="388.2" x2="1033.2" y2="388.2" stroke="#0369a1" stroke-width="2"/>
+  <line x1="1023.2" y1="552.4" x2="1033.2" y2="552.4" stroke="#0369a1" stroke-width="2"/>
+  <rect x="1049.2" y="220.0" width="30" height="340.0" rx="3" fill="#f87171"/>
+  <line x1="1064.2" y1="179.6" x2="1064.2" y2="282.7" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="1059.2" y1="179.6" x2="1069.2" y2="179.6" stroke="#b91c1c" stroke-width="2"/>
+  <line x1="1059.2" y1="282.7" x2="1069.2" y2="282.7" stroke="#b91c1c" stroke-width="2"/>
+  <text x="1046.2" y="582.0" class="model-name">gemma:2b</text>
+  <text x="1046.2" y="598.0" class="model-backend">(local)</text>
+  <text x="90" y="642" class="footer">Measured with `guard-rail-edge calibrate`. 95% Wilson score confidence interval shown.</text>
+</svg>
