@@ -27,15 +27,17 @@ Total Judge Calls: 18 | Judge Retries: 1 (5.6%) | Total Errors: 0
 
 The table below summarizes calibration benchmark runs evaluated via `guard-rail-edge calibrate` on the 50-case ground truth dataset (`guard_rail_edge/calibration/judge_calibration.json`):
 
-| Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Review Rate | Retries | Wall Time | Verdict |
+| Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Review Rate | Judge Parse Retries | Wall Time | Verdict |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Checks-Only** (Deterministic + Overlap) | 43.3% / 45.0% / **44.0%** | 12.5% / **10.0%** (Score 2)<br>37.5% / **30.0%** (Review) | 0.0% / **0.0%** | 12.0% (6 cases) | 0 | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |
 | `qwen2.5:7b` (1 vote, local) | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | 0.0% | 67 | 23m 17s | **NOT TRUSTWORTHY** (Holdout Recall 75.0% < 80.0%) |
 | `qwen2.5:7b` (3 votes, local) | *NOT RUN* | *NOT RUN* | *NOT RUN* | - | - | - | *NOT RUN (hardware constraint on dual-core CPU)* |
 | `qwen2.5:0.5b` (local) | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0.0% | 0 | 7m 37s | **NOT TRUSTWORTHY** (False alarms 85.0% > 15.0%) |
 | `gemma:2b` (local) | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0.0% | 0 | 1h 08m 12s | **NOT TRUSTWORTHY** (Recall 10.0% < 80.0%) |
-| Hosted Groq (`qwen/qwen3.8-27b`) | 93.3% / 90.0% / **92.0%** | 100.0% / **100.0%** | 0.0% / **5.0%** | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Certified on 50-case benchmark) |
+| Hosted Groq (`qwen/qwen3.8-27b`) | 93.3% / 90.0% / **92.0%** | 100.0% / **100.0%** | 0.0% / **5.0%** | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
 | Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 80.0% / **74.0%** | 100.0% / **100.0%** (Catch) | 37.5% / **45.0%** | 20.0% Holdout | 38 | 7m 14s | **NOT TRUSTWORTHY** (Holdout False Alarm 37.5% > 20.0%) |
+
+*Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*
 
 ### Calibration Criteria & Thresholds
 1. **Single Judge Criteria**:

@@ -213,3 +213,93 @@ def test_models_command_lists_fake_ids(mock_http_server, monkeypatch):
     assert "llama-3.3-70b-versatile" in result.output
     assert "mixtral-8x7b-32768" in result.output
     assert "secret-token" not in result.output
+
+
+def test_missing_env_var_reports_expected_preflight_guidance(monkeypatch):
+    """When api key env var is missing, preflight and list_models give helpful restart guidance."""
+    monkeypatch.delenv("MISSING_TEST_KEY_12345", raising=False)
+    backend = OpenAIBackend(
+        model="test-model",
+        base_url="https://api.groq.com/openai/v1",
+        api_key_env="MISSING_TEST_KEY_12345",
+        backend_type="groq",
+    )
+
+    with pytest.raises(Exception) as exc_preflight:
+        backend.preflight("test-model")
+    expected_msg = (
+        "Environment variable MISSING_TEST_KEY_12345 is not set in this process. "
+        "On Windows, after `setx`, restart your terminal/IDE."
+    )
+    assert expected_msg in str(exc_preflight.value)
+
+    with pytest.raises(Exception) as exc_models:
+        backend.list_models()
+    assert expected_msg in str(exc_models.value)
+
+
+def test_no_winreg_in_guard_rail_edge():
+    """winreg must never be imported or referenced anywhere in guard_rail_edge source."""
+    from pathlib import Path
+    pkg_dir = Path(__file__).resolve().parent.parent / "guard_rail_edge"
+    matches = []
+    for py_file in pkg_dir.rglob("*.py"):
+        content = py_file.read_text(encoding="utf-8")
+        if "winreg" in content:
+            matches.append(str(py_file))
+    assert not matches, f"Found winreg in source files: {matches}"
+
+
+def test_wilson_confidence_interval_known_values():
+    """Verify Wilson 95% confidence interval against known mathematical benchmarks."""
+    from guard_rail_edge.calibration import wilson_score_interval
+
+    # 1. 8/8 -> lower bound ~0.676
+    low_8_8, high_8_8 = wilson_score_interval(8, 8)
+    assert abs(low_8_8 - 0.676) < 0.001
+    assert high_8_8 == 1.0
+
+    # 2. 0/8 -> upper bound ~0.324
+    low_0_8, high_0_8 = wilson_score_interval(0, 8)
+    assert low_0_8 == 0.0
+    assert abs(high_0_8 - 0.324) < 0.001
+
+    # 3. 16/20 -> ~[0.584, 0.919]
+    low_16_20, high_16_20 = wilson_score_interval(16, 20)
+    assert abs(low_16_20 - 0.584) < 0.001
+    assert abs(high_16_20 - 0.919) < 0.001
+
+    # 4. Zero denominator edge case
+    assert wilson_score_interval(0, 0) == (0.0, 0.0)
+
+
+def test_parse_retries_and_rate_limit_waits_counters(mock_http_server, monkeypatch):
+    """Test that OpenAIBackend tracks rate_limit_waits and compute_calibration_metrics computes both."""
+    from guard_rail_edge.calibration import compute_calibration_metrics
+
+    # Test backend rate_limit_waits increment on 429
+    sleeps = []
+    monkeypatch.setattr("time.sleep", lambda s: sleeps.append(s))
+    monkeypatch.setenv("TEST_KEY", "dummy-value")
+
+    backend = OpenAIBackend(
+        model="test-model",
+        base_url=mock_http_server,
+        api_key_env="TEST_KEY",
+        timeout=10.0,
+    )
+    assert backend.rate_limit_waits == 0
+    backend.generate("Hello")
+    # mock_http_server returned 1 HTTP 429 before 200
+    assert backend.rate_limit_waits == 1
+
+    # Test compute_calibration_metrics surfaces retries and rate_limit_waits
+    fake_results = [
+        {"expected_score": 2, "got_score": 2, "retries_used": 2, "rate_limit_waits": 1},
+        {"expected_score": 0, "got_score": 0, "retries_used": 1, "rate_limit_waits": 0},
+    ]
+    metrics = compute_calibration_metrics(fake_results, rate_limit_waits=backend.rate_limit_waits)
+    assert metrics["retries"] == 3
+    assert metrics["rate_limit_waits"] == 2  # 1 from result item + 1 from backend argument
+    assert "leak_detection_ci" in metrics
+    assert "false_alarm_ci" in metrics

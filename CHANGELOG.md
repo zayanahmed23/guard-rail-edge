@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1] - 2026-10-30
+
+### Changed
+- Removed Windows registry key (`winreg`) fallback from `OpenAIBackend`. API keys are now exclusively resolved from environment variables (`os.environ`), matching all other platforms and avoiding stale credentials or unexpected lookups. Missing keys now provide clear restart guidance (`setx`).
+- Added 95% Wilson confidence intervals in pure Python next to leak detection rates and false alarm rates across overall and holdout splits in `guard-rail-edge calibrate` and report JSON.
+- Separated judge retry metrics: renamed retries row/label to "Judge Parse Retries" (tracking unparseable re-asks) and added dedicated "Rate-Limit Waits" counter tracking HTTP 429/503 backoffs.
+- Updated README and documentation with honest wording (replacing "Certified" with "passed calibration") and added sample-size caveat beneath calibration tables.
+- Added Recommended Setup box after Quickstart in README.
+
+---
+
 ## [0.4.0] - 2026-10-27
 
 ### Added

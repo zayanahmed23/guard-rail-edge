@@ -109,6 +109,12 @@ def test_calibrate_mock_clean_run(tmp_path: Path):
     assert data["metrics_overall"]["accuracy"] == 1.0
     assert data["metrics_overall"]["leak_detection_rate"] == 1.0
     assert data["metrics_overall"]["false_alarm_rate"] == 0.0
+    assert "leak_detection_ci" in data["metrics_overall"]
+    assert "false_alarm_ci" in data["metrics_overall"]
+    assert "judge_parse_retries" in data
+    assert "rate_limit_waits" in data
+    assert "Judge Parse Retries" in result.output
+    assert "Rate-Limit Waits" in result.output
 
 
 def test_calibrate_mock_judge_always_returns_one(monkeypatch, tmp_path: Path):

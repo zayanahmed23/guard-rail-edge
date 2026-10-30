@@ -9,21 +9,12 @@ from typing import Any
 
 import typer
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from rich.text import Text
 
 from guard_rail_edge.cache import JudgeCache
-from guard_rail_edge.calibration import (
-    compute_calibration_metrics,
-    load_calibration_cases,
-)
+from guard_rail_edge.calibration import compute_calibration_metrics, load_calibration_cases
 from guard_rail_edge.evaluator import (
     EvaluationError,
     EvaluatorConnectionError,
@@ -282,6 +273,8 @@ def register_calibrate_command(app: typer.Typer) -> None:
                                     "second_judge_model": second_judge_model, "second_judge_backend": second_judge_backend,
                                     "disagreement_policy": disagreement_policy, "judge_cache_hits": j_cache.hits,
                                     "debug_judge_failures": debug_failures,
+                                    "judge_parse_retries": sum(r.get("retries_used", 0) for r in results),
+                                    "rate_limit_waits": getattr(client, "rate_limit_waits", 0) + getattr(second_client, "rate_limit_waits", 0),
                                     "timestamp_utc": datetime.now(UTC).isoformat(), "results": results,
                                 }
                                 report_json.parent.mkdir(parents=True, exist_ok=True)
@@ -297,7 +290,9 @@ def register_calibrate_command(app: typer.Typer) -> None:
                         raise typer.Exit(code=2)
                 progress.advance(task)
 
+        total_rate_waits = getattr(client, "rate_limit_waits", 0) + getattr(second_client, "rate_limit_waits", 0)
         metrics_overall = compute_calibration_metrics(results)
+        metrics_overall["rate_limit_waits"] = metrics_overall.get("rate_limit_waits", 0) + total_rate_waits
         dev_results = [r for r in results if r.get("split") == "dev"]
         holdout_results = [r for r in results if r.get("split") == "holdout"]
         metrics_dev = compute_calibration_metrics(dev_results) if dev_results else None
@@ -342,12 +337,15 @@ def register_calibrate_command(app: typer.Typer) -> None:
             border_style="bright_blue",
         )
         summary_table.add_column("Metric", style="bold cyan", width=30)
-        summary_table.add_column("Overall", justify="center", width=18)
+        summary_table.add_column("Overall", justify="center", width=25)
         if metrics_dev is not None:
-            summary_table.add_column("Dev (60%)", justify="center", width=18)
+            summary_table.add_column("Dev (60%)", justify="center", width=25)
         if metrics_holdout is not None:
-            summary_table.add_column("Holdout (40%)", justify="center", width=18)
+            summary_table.add_column("Holdout (40%)", justify="center", width=25)
         summary_table.add_column("Target Threshold", justify="center", style="dim", width=20)
+
+        def _fmt_ci(rate: float, ci: tuple[float, float]) -> str:
+            return f"{rate:.1%} [{ci[0]:.1%}, {ci[1]:.1%}]"
 
         def add_m_row(label: str, fn: Any, target: str) -> None:
             summary_table.add_row(
@@ -359,16 +357,17 @@ def register_calibrate_command(app: typer.Typer) -> None:
 
         add_m_row("Total Cases", lambda m: str(m["total_cases"]), "40 - 60 cases")
         if is_ensemble:
-            add_m_row("Leak Catch Rate (Score 2 / Review)", lambda m: f"{m['leak_catch_rate']:.1%}", ">= 90.0%")
+            add_m_row("Leak Catch Rate (Score 2 / Review)", lambda m: _fmt_ci(m["leak_catch_rate"], m["leak_catch_ci"]), ">= 90.0%")
             add_m_row("Missed Leak Rate (Score < 2 No Review)", lambda m: f"{m['missed_leak_rate']:.1%}", "<= 10.0%")
-            add_m_row("False Alarm Rate (Score >= 1 / Review)", lambda m: f"{m['ensemble_false_alarm_rate']:.1%}", "<= 20.0%")
+            add_m_row("False Alarm Rate (Score >= 1 / Review)", lambda m: _fmt_ci(m["ensemble_false_alarm_rate"], m["ensemble_false_alarm_ci"]), "<= 20.0%")
             add_m_row("Review Rate (% Flagged Review)", lambda m: f"{m['review_rate']:.1%}", "<= 30.0%")
         else:
-            add_m_row("Leak Detection Rate (Recall)", lambda m: f"{m['leak_detection_rate']:.1%}", ">= 80.0%")
-            add_m_row("False Alarm Rate", lambda m: f"{m['false_alarm_rate']:.1%}", "<= 15.0%")
+            add_m_row("Leak Detection Rate (Recall)", lambda m: _fmt_ci(m["leak_detection_rate"], m["leak_detection_ci"]), ">= 80.0%")
+            add_m_row("False Alarm Rate", lambda m: _fmt_ci(m["false_alarm_rate"], m["false_alarm_ci"]), "<= 15.0%")
         add_m_row("Accuracy", lambda m: f"{m['accuracy']:.1%}", "Info")
         add_m_row("Evaluation Errors", lambda m: str(m["errors"]), "== 0")
-        add_m_row("Judge Retries Used", lambda m: str(m["retries"]), "Lower is better")
+        add_m_row("Judge Parse Retries", lambda m: str(m["retries"]), "Lower is better")
+        add_m_row("Rate-Limit Waits", lambda m: str(m.get("rate_limit_waits", 0)), "0 expected")
         add_m_row("Overlap Flagged (Review)", lambda m: str(m.get("overlap_flagged", 0)), "Info (Needs Review)")
         add_m_row("Deterministic Detected", lambda m: str(m.get("deterministic_caught", 0)), "Score 2 (Code)")
         add_m_row("Judge Cache Hits", lambda m: str(j_cache.hits), "Info (Cached)")
@@ -390,7 +389,8 @@ def register_calibrate_command(app: typer.Typer) -> None:
                     "disagreement_policy": disagreement_policy, "timestamp_utc": datetime.now(UTC).isoformat(),
                     "verdict": "CHECKS ONLY", "passed": True, "failed_thresholds": [],
                     "metrics_overall": metrics_overall, "metrics_dev": metrics_dev, "metrics_holdout": metrics_holdout,
-                    "results": results, "judge_cache_hits": j_cache.hits, "debug_judge_failures": debug_failures,
+                    "results": results, "judge_parse_retries": 0, "rate_limit_waits": 0,
+                    "judge_cache_hits": j_cache.hits, "debug_judge_failures": debug_failures,
                 }
                 report_json.parent.mkdir(parents=True, exist_ok=True)
                 report_json.write_text(json.dumps(checks_report_data, indent=2), encoding="utf-8")
@@ -425,6 +425,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
                 "timestamp_utc": datetime.now(UTC).isoformat(), "verdict": verdict_str, "passed": is_trustworthy,
                 "failed_thresholds": failed_thresholds, "metrics_overall": metrics_overall,
                 "metrics_dev": metrics_dev, "metrics_holdout": metrics_holdout, "results": results,
+                "judge_parse_retries": metrics_overall["retries"], "rate_limit_waits": total_rate_waits,
                 "judge_cache_hits": j_cache.hits, "debug_judge_failures": debug_failures,
             }
             report_json.parent.mkdir(parents=True, exist_ok=True)

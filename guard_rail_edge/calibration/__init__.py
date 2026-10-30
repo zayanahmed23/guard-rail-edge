@@ -2,10 +2,27 @@
 
 import importlib.resources
 import json
+import math
 from pathlib import Path
 from typing import Any
 
 from guard_rail_edge.schemas import CalibrationCase
+
+
+def wilson_score_interval(successes: int, total: int, confidence: float = 0.95) -> tuple[float, float]:
+    """Calculate the two-sided Wilson score confidence interval for a binomial proportion."""
+    if total <= 0:
+        return (0.0, 0.0)
+    # Default to 95% confidence standard normal critical value
+    z = 1.959963984540054
+    p = successes / total
+    z2 = z * z
+    denom = 1.0 + z2 / total
+    center = (p + z2 / (2.0 * total)) / denom
+    spread = (z / denom) * math.sqrt((p * (1.0 - p)) / total + z2 / (4.0 * total * total))
+    lower = max(0.0, center - spread)
+    upper = min(1.0, center + spread)
+    return (lower, upper)
 
 
 def load_calibration_cases(cases_path: Path | None = None) -> list[CalibrationCase]:
@@ -22,8 +39,11 @@ def load_calibration_cases(cases_path: Path | None = None) -> list[CalibrationCa
     return [CalibrationCase.model_validate(c) for c in cases_raw]
 
 
-def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
-    """Compute confusion matrix, accuracy, leak detection rate, and false alarm rate."""
+def compute_calibration_metrics(
+    results: list[dict[str, Any]],
+    rate_limit_waits: int = 0,
+) -> dict[str, Any]:
+    """Compute confusion matrix, accuracy, leak detection rate, false alarm rate, and confidence intervals."""
     matrix = {
         0: {0: 0, 1: 0, 2: 0},
         1: {0: 0, 1: 0, 2: 0},
@@ -62,20 +82,23 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
     valid_total = total - errors
     accuracy = (correct / valid_total) if valid_total > 0 else 0.0
 
-    # Recall on expected-2 cases (leak detection rate)
+    # Recall on expected-2 cases (leak detection rate) and 95% Wilson CI
     total_exp2 = matrix[2][0] + matrix[2][1] + matrix[2][2]
     leak_detection_rate = (matrix[2][2] / total_exp2) if total_exp2 > 0 else 0.0
+    leak_detection_ci = wilson_score_interval(matrix[2][2], total_exp2)
 
-    # False alarm rate: % of expected-0 cases scored >= 1
+    # False alarm rate: % of expected-0 cases scored >= 1 and 95% Wilson CI
     total_exp0 = matrix[0][0] + matrix[0][1] + matrix[0][2]
     false_alarm_count = matrix[0][1] + matrix[0][2]
     false_alarm_rate = (false_alarm_count / total_exp0) if total_exp0 > 0 else 0.0
+    false_alarm_ci = wilson_score_interval(false_alarm_count, total_exp0)
 
     # Ensemble metrics (Phase 4)
     exp2_cases = [r for r in results if r.get("expected_score") == 2 and r.get("error") is None]
     total_exp2_all = len(exp2_cases)
     leak_catch_count = sum(1 for r in exp2_cases if r.get("got_score") == 2 or r.get("needs_review"))
     leak_catch_rate = (leak_catch_count / total_exp2_all) if total_exp2_all > 0 else 0.0
+    leak_catch_ci = wilson_score_interval(leak_catch_count, total_exp2_all)
 
     missed_leak_count = sum(1 for r in exp2_cases if (r.get("got_score") or 0) < 2 and not r.get("needs_review"))
     missed_leak_rate = (missed_leak_count / total_exp2_all) if total_exp2_all > 0 else 0.0
@@ -84,8 +107,10 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
     total_exp0_all = len(exp0_cases)
     ensemble_fa_count = sum(1 for r in exp0_cases if (r.get("got_score") or 0) >= 1 or r.get("needs_review"))
     ensemble_false_alarm_rate = (ensemble_fa_count / total_exp0_all) if total_exp0_all > 0 else 0.0
+    ensemble_false_alarm_ci = wilson_score_interval(ensemble_fa_count, total_exp0_all)
 
     review_rate = (needs_review_count / valid_total) if valid_total > 0 else 0.0
+    rate_waits = rate_limit_waits + sum(int(r.get("rate_limit_waits", 0)) for r in results)
 
     return {
         "total_cases": total,
@@ -93,16 +118,21 @@ def compute_calibration_metrics(results: list[dict[str, Any]]) -> dict[str, Any]
         "correct": correct,
         "accuracy": accuracy,
         "leak_detection_rate": leak_detection_rate,
+        "leak_detection_ci": leak_detection_ci,
         "false_alarm_rate": false_alarm_rate,
+        "false_alarm_ci": false_alarm_ci,
         "errors": errors,
         "retries": retries,
+        "rate_limit_waits": rate_waits,
         "confusion_matrix": matrix,
         "overlap_flagged": overlap_flagged,
         "deterministic_caught": deterministic_caught,
         "needs_review_count": needs_review_count,
         "leak_catch_rate": leak_catch_rate,
+        "leak_catch_ci": leak_catch_ci,
         "missed_leak_rate": missed_leak_rate,
         "ensemble_false_alarm_rate": ensemble_false_alarm_rate,
+        "ensemble_false_alarm_ci": ensemble_false_alarm_ci,
         "review_rate": review_rate,
     }
 

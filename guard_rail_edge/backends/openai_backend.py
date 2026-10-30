@@ -33,27 +33,10 @@ class OpenAIBackend(ChatBackend):
         self.max_rpm = max_rpm
         self.backend_type = backend_type
         self._last_request_time: float = 0.0
+        self.rate_limit_waits: int = 0
 
     def _get_api_key(self) -> str | None:
         key = os.environ.get(self.api_key_env, "").strip()
-        if not key and sys.platform == "win32":
-            try:
-                import winreg
-
-                roots = [
-                    (winreg.HKEY_CURRENT_USER, r"Environment"),
-                    (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
-                ]
-                for root, subpath in roots:
-                    try:
-                        with winreg.OpenKey(root, subpath) as k:
-                            val, _ = winreg.QueryValueEx(k, self.api_key_env)
-                            if val and str(val).strip():
-                                return str(val).strip()
-                    except OSError:
-                        pass
-            except Exception:
-                pass
         return key if key else None
 
     def _get_headers(self) -> dict[str, str]:
@@ -83,9 +66,9 @@ class OpenAIBackend(ChatBackend):
     def preflight(self, model: str) -> None:
         """Check endpoint connectivity and API key configuration using GET /models if supported."""
         is_local = "127.0.0.1" in self.base_url or "localhost" in self.base_url
-        if self.backend_type in ("groq", "openrouter", "gemini", "github") and not is_local and not self._get_api_key():
+        if not self._get_api_key() and (not is_local or self.backend_type in ("groq", "openrouter", "gemini", "github")):
             raise EvaluatorConnectionError(
-                f"API key environment variable '{self.api_key_env}' is not set or empty."
+                f"Environment variable {self.api_key_env} is not set in this process. On Windows, after `setx`, restart your terminal/IDE."
             )
         self._apply_throttle()
         models_url = f"{self.base_url}/models"
@@ -119,7 +102,7 @@ class OpenAIBackend(ChatBackend):
         """Fetch available model IDs from GET /models."""
         if not self._get_api_key():
             raise EvaluatorConnectionError(
-                f"API key environment variable '{self.api_key_env}' is not set or empty."
+                f"Environment variable {self.api_key_env} is not set in this process. On Windows, after `setx`, restart your terminal/IDE."
             )
         self._apply_throttle()
         models_url = f"{self.base_url}/models"
@@ -157,6 +140,7 @@ class OpenAIBackend(ChatBackend):
                         f"Authentication failed (HTTP 401). Please check your API key in environment variable '{self.api_key_env}'."
                     ) from None
                 if exc.code in (429, 503):
+                    self.rate_limit_waits += 1
                     if rate_attempt < max_rate_retries:
                         retry_after = exc.headers.get("Retry-After") if exc.headers else None
                         wait_sec: float
