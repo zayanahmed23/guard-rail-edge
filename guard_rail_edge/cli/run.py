@@ -37,7 +37,9 @@ def register_run_command(app: typer.Typer) -> None:
 
     @app.command()
     def run(
+        ctx: typer.Context,
         suite: Path = typer.Option(Path("tests.json"), "--suite", "-s", help="Path to the JSON test suite file."),
+        config: Path | None = typer.Option(None, "--config", "-c", help="Path to custom configuration file."),
         model: str = typer.Option("gemma:2b", "--model", "-m", help="Local Ollama model for target simulation."),
         judge_model: str | None = typer.Option(None, "--judge-model", help="Evaluator judge model (defaults to --model)."),
         patch_model: str | None = typer.Option(None, "--patch-model", help="Model for patch synthesis (defaults to --judge-model)."),
@@ -81,6 +83,72 @@ def register_run_command(app: typer.Typer) -> None:
         version: bool | None = typer.Option(None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True),
     ) -> None:
         """Run automated prompt injection tests against target LLM system prompts."""
+        from guard_rail_edge.config import ConfigError, resolve_merged_config
+
+        try:
+            cfg_dict, cfg_path = resolve_merged_config(custom_config_path=config)
+        except ConfigError as exc:
+            console.print(f"[bold red]Config Error:[/bold red] {exc}")
+            sys.exit(2)
+
+        click_core = typer.core._click
+
+        def _get_val(param_name: str, current_val: Any) -> Any:
+            if ctx.get_parameter_source(param_name) == click_core.core.ParameterSource.COMMANDLINE:
+                return current_val
+            if param_name in cfg_dict:
+                return cfg_dict[param_name]
+            return current_val
+
+        suite = Path(_get_val("suite", suite))
+        model = str(_get_val("model", model))
+        judge_model = _get_val("judge_model", judge_model)
+        patch_model = _get_val("patch_model", patch_model)
+        target_backend = str(_get_val("target_backend", target_backend))
+        target_base_url = _get_val("target_base_url", target_base_url)
+        judge_backend = str(_get_val("judge_backend", judge_backend))
+        judge_base_url = _get_val("judge_base_url", judge_base_url)
+        second_judge_model = _get_val("second_judge_model", second_judge_model)
+        second_judge_backend = str(_get_val("second_judge_backend", second_judge_backend))
+        second_judge_base_url = _get_val("second_judge_base_url", second_judge_base_url)
+        disagreement_policy = str(_get_val("disagreement_policy", disagreement_policy))
+        api_key_env = str(_get_val("api_key_env", api_key_env))
+        max_rpm_val = _get_val("max_rpm", max_rpm)
+        max_rpm = int(max_rpm_val) if max_rpm_val is not None else None
+        host = str(_get_val("host", host))
+        timeout = float(_get_val("timeout", timeout))
+        judge_retries = int(_get_val("judge_retries", judge_retries))
+        judge_votes = int(_get_val("judge_votes", judge_votes))
+        repeats = int(_get_val("repeats", repeats))
+        seed_val = _get_val("seed", seed)
+        seed = int(seed_val) if seed_val is not None else None
+        auto_patch = bool(_get_val("auto_patch", auto_patch))
+        apply = bool(_get_val("apply", apply))
+        force_apply = bool(_get_val("force_apply", force_apply))
+        patch_output_val = _get_val("patch_output", patch_output)
+        patch_output = Path(patch_output_val) if patch_output_val is not None else None
+        verify_patch = bool(_get_val("verify_patch", verify_patch))
+        fail_on_suspicious = bool(_get_val("fail_on_suspicious", fail_on_suspicious))
+        fail_on_format = bool(_get_val("fail_on_format", fail_on_format))
+        on_review = str(_get_val("on_review", on_review))
+        auto_canary = bool(_get_val("auto_canary", auto_canary))
+        judge_always = bool(_get_val("judge_always", judge_always))
+        overlap_check = bool(_get_val("overlap_check", overlap_check))
+        overlap_threshold = float(_get_val("overlap_threshold", overlap_threshold))
+        judge_cache_val = _get_val("judge_cache", judge_cache)
+        judge_cache = Path(judge_cache_val) if judge_cache_val is not None else None
+        no_cache = bool(_get_val("no_cache", no_cache))
+        debug_judge = bool(_get_val("debug_judge", debug_judge))
+        pack_val = _get_val("pack", pack)
+        pack = [pack_val] if isinstance(pack_val, str) else pack_val
+        exclude_val = _get_val("exclude", exclude)
+        exclude = [exclude_val] if isinstance(exclude_val, str) else exclude_val
+        min_severity = _get_val("min_severity", min_severity)
+        report_json_val = _get_val("report_json", report_json)
+        report_json = Path(report_json_val) if report_json_val is not None else None
+        redact_responses = bool(_get_val("redact_responses", redact_responses))
+        mock = bool(_get_val("mock", mock))
+
         if on_review not in ("fail", "warn"):
             console.print(f"[bold red]Error:[/bold red] Invalid --on-review policy '{on_review}'. Must be 'fail' or 'warn'.")
             sys.exit(2)
@@ -99,6 +167,9 @@ def register_run_command(app: typer.Typer) -> None:
         else:
             header_text = Text("Starting Guard-Rail Edge Evaluator...", style="bold cyan")
             console.print(Panel(header_text, border_style="cyan", padding=(1, 2)))
+
+        if cfg_path:
+            console.print(f"Config: {cfg_path}")
 
         # 2. Ingest and validate JSON test suite & assemble tests
         test_suite, prompt_target_file = load_suite(suite)
