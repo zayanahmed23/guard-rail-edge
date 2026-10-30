@@ -38,6 +38,7 @@ def register_run_command(app: typer.Typer) -> None:
     @app.command()
     def run(
         ctx: typer.Context,
+        suite_arg: Path | None = typer.Argument(None, help="Optional positional path to the JSON test suite file."),
         suite: Path = typer.Option(Path("tests.json"), "--suite", "-s", help="Path to the JSON test suite file."),
         config: Path | None = typer.Option(None, "--config", "-c", help="Path to custom configuration file."),
         model: str = typer.Option("gemma:2b", "--model", "-m", help="Local Ollama model for target simulation."),
@@ -100,7 +101,10 @@ def register_run_command(app: typer.Typer) -> None:
                 return cfg_dict[param_name]
             return current_val
 
-        suite = Path(_get_val("suite", suite))
+        if suite_arg is not None:
+            suite = suite_arg
+        else:
+            suite = Path(_get_val("suite", suite))
         model = str(_get_val("model", model))
         judge_model = _get_val("judge_model", judge_model)
         patch_model = _get_val("patch_model", patch_model)
