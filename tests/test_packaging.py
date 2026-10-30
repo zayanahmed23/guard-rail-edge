@@ -97,3 +97,58 @@ def test_wheel_contains_only_package_files(tmp_path: Path):
         assert name.startswith("guard_rail_edge/"), (
             f"Found top-level module or file '{name}' in wheel outside 'guard_rail_edge/' package"
         )
+
+
+def test_version_is_0_5_0():
+    """Assert package version is bumped to 0.5.0."""
+    assert __version__ == "0.5.0"
+
+
+def test_pyproject_metadata():
+    """Assert pyproject.toml contains required keywords, classifiers, and project URLs."""
+    import tomllib
+
+    pyproject_path = Path("pyproject.toml")
+    assert pyproject_path.is_file()
+    data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+
+    project = data.get("project", {})
+    keywords = project.get("keywords", [])
+    expected_keywords = [
+        "prompt-injection",
+        "red-teaming",
+        "llm-security",
+        "jailbreak",
+        "edge-ai",
+        "ollama",
+        "groq",
+    ]
+    for kw in expected_keywords:
+        assert kw in keywords, f"Missing keyword '{kw}' in pyproject.toml"
+
+    classifiers = project.get("classifiers", [])
+    assert "Framework :: Pytest" in classifiers
+    assert "Intended Audience :: Developers" in classifiers
+    assert "Intended Audience :: Science/Research" in classifiers
+    assert "Topic :: Security" in classifiers
+
+    urls = project.get("urls", {})
+    for url_key in ["Homepage", "Repository", "Issues", "Documentation", "Changelog"]:
+        assert url_key in urls, f"Missing URL '{url_key}' in pyproject.toml"
+
+
+def test_launch_hygiene_files_exist():
+    """Assert all required launch hygiene and community health files exist."""
+    required_files = [
+        "SECURITY.md",
+        "CODE_OF_CONDUCT.md",
+        "CITATION.cff",
+        ".github/ISSUE_TEMPLATE/bug_report.md",
+        ".github/ISSUE_TEMPLATE/feature_request.md",
+        ".github/ISSUE_TEMPLATE/new_attack.md",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+    ]
+    for rel_path in required_files:
+        p = Path(rel_path)
+        assert p.is_file(), f"Missing required file: {rel_path}"
+        assert p.stat().st_size > 0, f"File is empty: {rel_path}"

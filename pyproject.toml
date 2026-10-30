@@ -10,10 +10,12 @@ readme = "README.md"
 authors = [{ name = "Zayan Ahmed" }]
 license = "MIT"
 requires-python = ">=3.11"
-keywords = ["llm", "security", "jailbreak", "prompt-injection", "ci-cd", "ollama", "evaluator", "guardrails"]
+keywords = ["prompt-injection", "red-teaming", "llm-security", "jailbreak", "edge-ai", "ollama", "groq"]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "Topic :: Security",
     "Topic :: Software Development :: Testing",
     "Programming Language :: Python :: 3",
@@ -32,6 +34,8 @@ dependencies = [
 Homepage = "https://github.com/zayanahmed23/guard-rail-edge"
 Repository = "https://github.com/zayanahmed23/guard-rail-edge.git"
 Issues = "https://github.com/zayanahmed23/guard-rail-edge/issues"
+Documentation = "https://github.com/zayanahmed23/guard-rail-edge/tree/main/docs"
+Changelog = "https://github.com/zayanahmed23/guard-rail-edge/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

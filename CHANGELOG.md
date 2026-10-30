@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-10-30
+
+### Added
+- **Layered Configuration Support (`guard_rail_edge/config.py`)**:
+  - Full TOML configuration loaded in strict precedence: built-in defaults -> `[tool.guard-rail-edge]` in `pyproject.toml` -> `guard-rail-edge.toml` (or `--config PATH`) -> CLI flags.
+  - Unknown configuration keys trigger an informative error and exit code 2.
+  - Run header prints `Config: <path>` whenever a configuration file is active.
+- **`guard-rail-edge doctor` Command**:
+  - Preflight environment diagnostics checking Python version, package version, configuration validity, credential presence (`SET`/`NOT SET`), Ollama connectivity, test suite validity, judge independence, and empirical calibration status.
+- **`guard-rail-edge init --preset groq|ollama|mock`**:
+  - Scaffolds both `tests.json` and a commented `guard-rail-edge.toml` tailored for Groq free tier, local Ollama, or offline mock modes.
+- **Realistic Example Suites (`examples/`)**:
+  - Added runnable, realistic suites in `examples/support-bot/`, `examples/rag-assistant/`, `examples/internal-hr-bot/`, and `examples/json-api-agent/`, each with `tests.json`, `guard-rail-edge.toml`, and README documentation.
+- **Empirical Calibration Visualizations**:
+  - Generated `assets/judge-calibration.svg` from benchmark data in `docs/data/judge_calibration.json` with 95% Wilson confidence intervals.
+  - Recorded realistic terminal demo `assets/demo.svg` via Rich console recording.
+- **Documentation Architecture Split**:
+  - Split comprehensive reference materials into `docs/cli-reference.md`, `docs/configuration.md`, `docs/attack-library.md`, `docs/calibration.md`, and `docs/backends.md`.
+- **Launch Hygiene**:
+  - Added `SECURITY.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), issue templates (`bug_report.md`, `feature_request.md`, `new_attack.md` with harmless-goal rule), PR template, and `CITATION.cff`.
+
+### Changed
+- **README.md Overhaul**:
+  - Completely rewritten around calibrated AI judges, under 250 lines, leading with *"Prompt-injection testing for CI/CD that measures whether its own AI judge can be trusted"*.
+  - Updated Quickstart to recommend the free Groq preset instead of uncalibrated local models.
+  - Added neutral, factual comparison against promptfoo, garak, PyRIT, and DeepTeam.
+
+### Fixed
+- Fixed pytest pythonpath resolution for top-level scripts across cross-platform environments.
+- Corrected cross-platform path resolution in markdown link integrity tests.
+
+---
+
 ## [0.4.1] - 2026-10-30
 
 ### Changed

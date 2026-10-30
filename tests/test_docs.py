@@ -69,7 +69,7 @@ def test_readme_relative_links_and_anchors() -> None:
         if not target_file_part:
             target_file = readme_path
         else:
-            target_file = repo_root / target_file_part.replace("/", "\\")
+            target_file = repo_root / Path(target_file_part)
 
         assert target_file.exists(), f"Broken link in README: {link} -> {target_file} does not exist"
 

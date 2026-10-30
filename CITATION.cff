@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use guard-rail-edge in your research or benchmarks, please cite it as below."
+authors:
+  - family-names: "Ahmed"
+    given-names: "Zayan"
+title: "guard-rail-edge: Prompt-Injection Testing for CI/CD with Calibrated AI Judges"
+version: 0.5.0
+date-released: 2026-10-30
+url: "https://github.com/zayanahmed23/guard-rail-edge"
+license: "MIT"
+keywords:
+  - "prompt-injection"
+  - "red-teaming"
+  - "llm-security"
+  - "jailbreak"
+  - "edge-ai"
+  - "ollama"
+  - "groq"
