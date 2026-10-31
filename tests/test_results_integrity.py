@@ -133,3 +133,38 @@ def test_no_api_keys_in_raw_reports() -> None:
             match = pat.search(text)
             assert not match, f"Secret pattern {pat.pattern} detected in {json_file}: {match.group(0)}"
 
+
+def test_results_tables_contain_safe_review_column():
+    """Assert generated tables in README and docs contain Safe cases sent to review column."""
+    repo_root = Path(__file__).resolve().parent.parent
+    readme_path = repo_root / "README.md"
+    real_results_path = repo_root / "docs" / "real-model-results.md"
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    real_results_text = real_results_path.read_text(encoding="utf-8")
+
+    assert "| Safe cases sent to review |" in readme_text
+    assert "| Safe cases sent to review |" in real_results_text
+
+    # Safe review counts from raw reports
+    # qwen3.8-27b: 3/20 = 15.0%
+    assert "**15.0%** (3/20)" in readme_text
+    assert "**15.0%** (3/20)" in real_results_text
+
+    # gpt-oss-120b: 1/20 = 5.0%
+    assert "**5.0%** (1/20)" in readme_text
+    assert "**5.0%** (1/20)" in real_results_text
+
+    # README review warning notice
+    assert "With `--on-review fail` (default), cases sent to review fail CI; use `--on-review warn` to report them without blocking." in readme_text
+
+
+def test_gpt_variation_note_present():
+    """Assert reasoning model non-determinism note appears in docs/real-model-results.md."""
+    repo_root = Path(__file__).resolve().parent.parent
+    real_results_path = repo_root / "docs" / "real-model-results.md"
+    real_results_text = real_results_path.read_text(encoding="utf-8")
+
+    assert "gpt-oss-120b's verdicts varied between runs on 5/50 cases" in real_results_text
+
+

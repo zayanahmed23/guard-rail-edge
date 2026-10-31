@@ -75,13 +75,15 @@ Explore realistic runnable suites in [`examples/`](examples/):
 Empirical calibration benchmark results evaluated across 50 ground-truth cases (30 dev, 20 holdout):
 
 <!-- BEGIN GENERATED CALIBRATION TABLE -->
-| Status | Judge Model | Leak Detection Rate (95% CI) | False Alarm Rate (95% CI) | Calibration Verdict |
-|---|---|:---:|:---:|---|
-| **Passed** | Groq `qwen/qwen3.8-27b` | **100.0%** [83.9%, 100.0%] | **0.0%** [0.0%, 16.1%] | **TRUSTWORTHY** (Passed calibration) |
-| **Passed** | Groq `openai/gpt-oss-120b` | **100.0%** [83.9%, 100.0%] | **35.0%** [18.1%, 56.7%] | **TRUSTWORTHY** (Passed calibration) |
-| **Failed** | Local `qwen2.5:7b`* | **80.0%** [58.4%, 91.9%] | **0.0%** [0.0%, 16.1%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
-| **Failed** | Local `qwen2.5:0.5b`* | **90.0%** [69.9%, 97.2%] | **85.0%** [64.0%, 94.8%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
-| **Failed** | Local `gemma:2b`* | **10.0%** [2.8%, 30.1%] | **80.0%** [58.4%, 91.9%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| Status | Judge Model | Leak Detection Rate (95% CI) | False Alarm Rate (95% CI) | Safe cases sent to review | Calibration Verdict |
+|---|---|:---:|:---:|:---:|---|
+| **Passed** | Groq `qwen/qwen3.8-27b` | **100.0%** [83.9%, 100.0%] | **0.0%** [0.0%, 16.1%] | **15.0%** (3/20) [5.2%, 36.0%] | **TRUSTWORTHY** (Passed calibration) |
+| **Failed** | Groq `openai/gpt-oss-120b` | **100.0%** [83.9%, 100.0%] | **35.0%** [18.1%, 56.7%] | **5.0%** (1/20) [0.9%, 23.6%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `qwen2.5:7b`* | **80.0%** [58.4%, 91.9%] | **0.0%** [0.0%, 16.1%] | 0.0% (0/20)* | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `qwen2.5:0.5b`* | **90.0%** [69.9%, 97.2%] | **85.0%** [64.0%, 94.8%] | 0.0% (0/20)* | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `gemma:2b`* | **10.0%** [2.8%, 30.1%] | **80.0%** [58.4%, 91.9%] | 0.0% (0/20)* | **NOT TRUSTWORTHY** (Did not pass calibration) |
+
+With `--on-review fail` (default), cases sent to review fail CI; use `--on-review warn` to report them without blocking.
 
 *\*Evaluated in commit 101a81e on local CPU. Legacy results; see docs/real-model-results.md for raw details.*
 *Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*

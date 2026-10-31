@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.2] - 2026-10-31
+
+### Fixed
+- Fixed: verdict now requires overall AND holdout thresholds; gpt-oss-120b re-labelled NOT TRUSTWORTHY.
+- Rationale: End users don't tune on our dataset, so the overall set is the main estimate; the holdout split guards against evaluator prompt tuning.
+
+### Added
+- Added review-rate column ("Safe cases sent to review") with Wilson confidence intervals to calibration tables in `README.md` and documentation.
+- Added `--rescore` flag to `guard-rail-edge calibrate` to recompute metrics and verdicts from existing raw report JSON files without calling model backends.
+- Added non-determinism note in documentation for reasoning models across repeat runs.
+
 ## [0.5.1] - 2026-10-31
 
 ### Security

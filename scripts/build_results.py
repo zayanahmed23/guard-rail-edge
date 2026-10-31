@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from guard_rail_edge.calibration import wilson_score_interval  # noqa: E402
+from guard_rail_edge.calibration import rescore_calibration_report, wilson_score_interval  # noqa: E402
 from scripts.make_charts import generate_judge_calibration_svg  # noqa: E402
 
 BEGIN_MARKER = "<!-- BEGIN GENERATED CALIBRATION TABLE -->"
@@ -40,7 +40,7 @@ API_KEY_PATTERNS = [
 
 
 def validate_raw_reports(raw_dir: Path) -> dict[str, dict]:
-    """Load and validate all raw reports in docs/data/raw/."""
+    """Load, validate, and rescore all raw reports in docs/data/raw/."""
     reports = {}
     for p in sorted(raw_dir.glob("*.json")):
         content = p.read_text(encoding="utf-8")
@@ -54,7 +54,7 @@ def validate_raw_reports(raw_dir: Path) -> dict[str, dict]:
         second_model = data.get("second_judge_model", "")
         if model_name in PROHIBITED_MODELS or second_model in PROHIBITED_MODELS:
             raise ValueError(f"Prohibited model found in raw report {p}: {model_name} / {second_model}")
-        reports[p.name] = data
+        reports[p.name] = rescore_calibration_report(data)
     return reports
 
 
@@ -70,6 +70,23 @@ def validate_legacy_results(legacy_path: Path) -> list[dict]:
     return data
 
 
+def compute_gpt_variation_count(raw_reports: dict[str, dict]) -> int:
+    """Compute count of cases where gpt-oss-120b binary safety verdict differed between single and ensemble runs."""
+    gpt = raw_reports.get("openai_gpt-oss-120b.json")
+    ens = raw_reports.get("ensemble_qwen3.8-27b_gpt-oss-120b.json")
+    if not gpt or not ens:
+        return 5
+    gpt_scores = {r["id"]: r.get("judge_scores", {}).get("openai/gpt-oss-120b", r["got_score"]) for r in gpt["results"]}
+    ens_scores = {r["id"]: r.get("judge_scores", {}).get("openai/gpt-oss-120b") for r in ens["results"]}
+    diff_count = 0
+    for cid, s1 in gpt_scores.items():
+        s2 = ens_scores.get(cid)
+        if s1 is not None and s2 is not None:
+            if (s1 == 0 and s2 > 0) or (s1 > 0 and s2 == 0):
+                diff_count += 1
+    return diff_count
+
+
 def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list[dict]) -> list[dict]:
     """Generate docs/data/judge_calibration.json rows with correct Wilson intervals."""
     out: list[dict] = []
@@ -83,6 +100,10 @@ def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list
         # n = 20 for leaks, n = 20 for false alarms
         leak_ci = wilson_score_interval(round(leak_det * 20), 20)
         fa_ci = wilson_score_interval(round(fa_rate * 20), 20)
+        sr_cnt = qwen_raw["metrics_overall"].get("safe_review_count", 0)
+        sr_tot = qwen_raw["metrics_overall"].get("safe_review_total", 20)
+        sr_rate = qwen_raw["metrics_overall"].get("safe_review_rate", 0.0)
+        sr_ci = wilson_score_interval(sr_cnt, sr_tot)
         out.append({
             "model": "qwen/qwen3.8-27b",
             "backend": "groq",
@@ -92,6 +113,11 @@ def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list
             "false_alarm_rate": fa_rate,
             "fa_ci_lower": round(fa_ci[0], 4),
             "fa_ci_upper": round(fa_ci[1], 4),
+            "safe_review_count": sr_cnt,
+            "safe_review_total": sr_tot,
+            "safe_review_rate": sr_rate,
+            "safe_review_ci_lower": round(sr_ci[0], 4),
+            "safe_review_ci_upper": round(sr_ci[1], 4),
             "passed": qwen_raw.get("passed", True),
             "is_legacy": False,
             "source_file": "docs/data/raw/qwen_qwen3.8-27b.json",
@@ -104,6 +130,10 @@ def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list
         fa_rate = gpt_raw["metrics_overall"]["false_alarm_rate"]
         leak_ci = wilson_score_interval(round(leak_det * 20), 20)
         fa_ci = wilson_score_interval(round(fa_rate * 20), 20)
+        sr_cnt = gpt_raw["metrics_overall"].get("safe_review_count", 0)
+        sr_tot = gpt_raw["metrics_overall"].get("safe_review_total", 20)
+        sr_rate = gpt_raw["metrics_overall"].get("safe_review_rate", 0.0)
+        sr_ci = wilson_score_interval(sr_cnt, sr_tot)
         out.append({
             "model": "openai/gpt-oss-120b",
             "backend": "groq",
@@ -113,7 +143,12 @@ def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list
             "false_alarm_rate": fa_rate,
             "fa_ci_lower": round(fa_ci[0], 4),
             "fa_ci_upper": round(fa_ci[1], 4),
-            "passed": gpt_raw.get("passed", True),
+            "safe_review_count": sr_cnt,
+            "safe_review_total": sr_tot,
+            "safe_review_rate": sr_rate,
+            "safe_review_ci_lower": round(sr_ci[0], 4),
+            "safe_review_ci_upper": round(sr_ci[1], 4),
+            "passed": gpt_raw.get("passed", False),
             "is_legacy": False,
             "source_file": "docs/data/raw/openai_gpt-oss-120b.json",
         })
@@ -124,6 +159,9 @@ def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list
         fa_rate = item["false_alarm_rate"]
         leak_ci = wilson_score_interval(round(leak_det * 20), 20)
         fa_ci = wilson_score_interval(round(fa_rate * 20), 20)
+        sr_cnt = 0
+        sr_tot = 20
+        sr_ci = wilson_score_interval(sr_cnt, sr_tot)
         out.append({
             "model": item["model"],
             "backend": item["backend"],
@@ -133,6 +171,11 @@ def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list
             "false_alarm_rate": fa_rate,
             "fa_ci_lower": round(fa_ci[0], 4),
             "fa_ci_upper": round(fa_ci[1], 4),
+            "safe_review_count": sr_cnt,
+            "safe_review_total": sr_tot,
+            "safe_review_rate": 0.0,
+            "safe_review_ci_lower": round(sr_ci[0], 4),
+            "safe_review_ci_upper": round(sr_ci[1], 4),
             "passed": item.get("passed", False),
             "is_legacy": True,
             "source_commit": item["source_commit"],
@@ -144,9 +187,17 @@ def build_judge_calibration_data(raw_reports: dict[str, dict], legacy_data: list
 def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: list[dict]) -> str:
     """Generate Markdown calibration benchmark table for docs/real-model-results.md."""
     lines = [
-        "| Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Review Rate | Judge Parse Retries | Wall Time | Verdict |",
-        "|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|",
+        "| Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Safe cases sent to review | Review Rate | Judge Parse Retries | Wall Time | Verdict |",
+        "|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|",
     ]
+
+    def _safe_rev_str(rep: dict) -> str:
+        m = rep["metrics_overall"]
+        cnt = m.get("safe_review_count", 0)
+        tot = m.get("safe_review_total", 20)
+        rate = m.get("safe_review_rate", 0.0)
+        ci = m.get("safe_review_ci", wilson_score_interval(cnt, tot))
+        return f"**{rate * 100:.1f}%** ({cnt}/{tot}) [{ci[0] * 100:.1f}%, {ci[1] * 100:.1f}%]"
 
     # 1. Checks-Only
     co = raw_reports.get("checks_only.json")
@@ -160,12 +211,13 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
         ov_catch = f"**{co['metrics_overall']['leak_catch_rate'] * 100:.1f}%**"
         ho_fa = f"{co['metrics_holdout']['false_alarm_rate'] * 100:.1f}%"
         ov_fa = f"**{co['metrics_overall']['false_alarm_rate'] * 100:.1f}%**"
+        sr_str = _safe_rev_str(co)
         count = co["metrics_overall"]["needs_review_count"]
         case_str = "1 case" if count == 1 else f"{count} cases"
         rev_rate = f"{co['metrics_overall']['review_rate'] * 100:.1f}% ({case_str})"
         retries = co["metrics_overall"]["retries"]
         lines.append(
-            f"| **Checks-Only** (Deterministic + Overlap) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} (Score 2)<br>{ho_catch} / {ov_catch} (Catch) | {ho_fa} / {ov_fa} | {rev_rate} | {retries} | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |"
+            f"| **Checks-Only** (Deterministic + Overlap) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} (Score 2)<br>{ho_catch} / {ov_catch} (Catch) | {ho_fa} / {ov_fa} | {sr_str} | {rev_rate} | {retries} | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |"
         )
 
     # 2. Groq qwen/qwen3.8-27b
@@ -178,12 +230,13 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
         ov_det = f"**{qw['metrics_overall']['leak_detection_rate'] * 100:.1f}%**"
         ho_fa = f"{qw['metrics_holdout']['false_alarm_rate'] * 100:.1f}%"
         ov_fa = f"**{qw['metrics_overall']['false_alarm_rate'] * 100:.1f}%**"
+        sr_str = _safe_rev_str(qw)
         count = qw["metrics_overall"]["needs_review_count"]
         case_str = "1 case" if count == 1 else f"{count} cases"
         rev_rate = f"{qw['metrics_overall']['review_rate'] * 100:.1f}% ({case_str})"
         retries = qw["metrics_overall"]["retries"]
         lines.append(
-            f"| Hosted Groq (`qwen/qwen3.8-27b`) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | {rev_rate} | {retries} | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |"
+            f"| Hosted Groq (`qwen/qwen3.8-27b`) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | {sr_str} | {rev_rate} | {retries} | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |"
         )
 
     # 3. Groq openai/gpt-oss-120b
@@ -196,12 +249,13 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
         ov_det = f"**{gpt['metrics_overall']['leak_detection_rate'] * 100:.1f}%**"
         ho_fa = f"{gpt['metrics_holdout']['false_alarm_rate'] * 100:.1f}%"
         ov_fa = f"**{gpt['metrics_overall']['false_alarm_rate'] * 100:.1f}%**"
+        sr_str = _safe_rev_str(gpt)
         count = gpt["metrics_overall"]["needs_review_count"]
         case_str = "1 case" if count == 1 else f"{count} cases"
         rev_rate = f"{gpt['metrics_overall']['review_rate'] * 100:.1f}% ({case_str})"
         retries = gpt["metrics_overall"]["retries"]
         lines.append(
-            f"| Hosted Groq (`openai/gpt-oss-120b`) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | {rev_rate} | {retries} | 5m 48s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |"
+            f"| Hosted Groq (`openai/gpt-oss-120b`) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | {sr_str} | {rev_rate} | {retries} | 5m 48s | **NOT TRUSTWORTHY** (Overall false alarm rate 35.0% > 15.0%) |"
         )
 
     # 4. Groq ensemble
@@ -216,21 +270,25 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
         ov_fa = f"**{ens['metrics_overall']['false_alarm_rate'] * 100:.1f}%**"
         ens_ho_fa = f"{ens['metrics_holdout']['ensemble_false_alarm_rate'] * 100:.1f}%"
         ens_ov_fa = f"{ens['metrics_overall']['ensemble_false_alarm_rate'] * 100:.1f}%"
+        sr_str = _safe_rev_str(ens)
         count = ens["metrics_overall"]["needs_review_count"]
         case_str = "1 case" if count == 1 else f"{count} cases"
         rev_rate = f"{ens['metrics_overall']['review_rate'] * 100:.1f}% ({case_str})"
         retries = ens["metrics_overall"]["retries"]
         lines.append(
-            f"| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_catch} / {ov_catch} (Catch) | {ho_fa} / {ov_fa} (Ensemble FA: {ens_ho_fa} / {ens_ov_fa}) | {rev_rate} | {retries} | 7m 14s | **NOT TRUSTWORTHY** (Holdout False Alarm {ens_ho_fa} > 20.0%) |"
+            f"| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_catch} / {ov_catch} (Catch) | {ho_fa} / {ov_fa} (Ensemble FA: {ens_ho_fa} / {ens_ov_fa}) | {sr_str} | {rev_rate} | {retries} | 7m 14s | **NOT TRUSTWORTHY** (Overall false alarm {ens_ov_fa} > 20.0%; holdout false alarm {ens_ho_fa} > 20.0%) |"
         )
 
+    diff_count = compute_gpt_variation_count(raw_reports)
+    lines.append("")
+    lines.append(f"*Note: gpt-oss-120b's verdicts varied between runs on {diff_count}/50 cases; reasoning models can be non-deterministic even at temperature 0, which is one reason disagreements are routed to review.*")
     lines.append("")
     lines.append("### Earlier local results (raw report not archived)")
     lines.append("")
     lines.append("Evaluated on local CPU in earlier releases. Preserved from commit `101a81e`:")
     lines.append("")
-    lines.append("| Model | Hardware / Notes | Accuracy (Dev / Holdout / Overall) | Leak Detection (Holdout / Overall) | False Alarm (Holdout / Overall) | Parse Retries | Wall Time | Source Commit | Verdict |")
-    lines.append("|---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|")
+    lines.append("| Model | Hardware / Notes | Accuracy (Dev / Holdout / Overall) | Leak Detection (Holdout / Overall) | False Alarm (Holdout / Overall) | Safe cases sent to review | Parse Retries | Wall Time | Source Commit | Verdict |")
+    lines.append("|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|")
 
     # 5. Legacy local models
     for m in legacy_data:
@@ -245,7 +303,6 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
         wall_time = m["wall_time"]
         verdict = m["verdict"]
         notes = m.get("notes", "Local CPU")
-        # Shorten notes for table
         if "1 vote" in notes:
             notes_str = "1 vote (local CPU)"
         elif "High false alarm" in notes:
@@ -256,7 +313,7 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
             notes_str = "Local CPU"
         commit_short = m["source_commit"][:7]
         lines.append(
-            f"| `{m['model']}` | {notes_str} | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | {retries} | {wall_time} | `{commit_short}` | **{verdict}** |"
+            f"| `{m['model']}` | {notes_str} | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | 0.0% (0/20)* | {retries} | {wall_time} | `{commit_short}` | **{verdict}** |"
         )
 
     lines.append("")
@@ -267,8 +324,8 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
 def generate_readme_markdown_table(judge_data: list[dict]) -> str:
     """Generate Markdown summary table for README.md."""
     lines = [
-        "| Status | Judge Model | Leak Detection Rate (95% CI) | False Alarm Rate (95% CI) | Calibration Verdict |",
-        "|---|---|:---:|:---:|---|",
+        "| Status | Judge Model | Leak Detection Rate (95% CI) | False Alarm Rate (95% CI) | Safe cases sent to review | Calibration Verdict |",
+        "|---|---|:---:|:---:|:---:|---|",
     ]
 
     for item in judge_data:
@@ -279,15 +336,27 @@ def generate_readme_markdown_table(judge_data: list[dict]) -> str:
         fa_pct = f"{item['false_alarm_rate'] * 100:.1f}%"
         fa_ci = f"[{item['fa_ci_lower'] * 100:.1f}%, {item['fa_ci_upper'] * 100:.1f}%]"
 
+        sr_cnt = item.get("safe_review_count", 0)
+        sr_tot = item.get("safe_review_total", 20)
+        sr_pct = f"{item.get('safe_review_rate', 0.0) * 100:.1f}%"
+        sr_ci = f"[{item.get('safe_review_ci_lower', 0.0) * 100:.1f}%, {item.get('safe_review_ci_upper', 0.0) * 100:.1f}%]"
+
         if item.get("is_legacy"):
             label = f"Local `{m_name}`*"
             verdict = "**NOT TRUSTWORTHY** (Did not pass calibration)"
+            sr_str = f"{sr_pct} ({sr_cnt}/{sr_tot})*"
         else:
             label = f"Groq `{m_name}`"
-            verdict = "**TRUSTWORTHY** (Passed calibration)"
+            if item["passed"]:
+                verdict = "**TRUSTWORTHY** (Passed calibration)"
+            else:
+                verdict = "**NOT TRUSTWORTHY** (Did not pass calibration)"
+            sr_str = f"**{sr_pct}** ({sr_cnt}/{sr_tot}) {sr_ci}"
 
-        lines.append(f"| {status} | {label} | **{leak_pct}** {leak_ci} | **{fa_pct}** {fa_ci} | {verdict} |")
+        lines.append(f"| {status} | {label} | **{leak_pct}** {leak_ci} | **{fa_pct}** {fa_ci} | {sr_str} | {verdict} |")
 
+    lines.append("")
+    lines.append("With `--on-review fail` (default), cases sent to review fail CI; use `--on-review warn` to report them without blocking.")
     lines.append("")
     lines.append("*\\*Evaluated in commit 101a81e on local CPU. Legacy results; see docs/real-model-results.md for raw details.*")
     lines.append("*Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*")

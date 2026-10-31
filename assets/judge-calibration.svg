@@ -79,9 +79,6 @@
   <line x1="210.0" y1="560.0" x2="220.0" y2="560.0" stroke="#b91c1c" stroke-width="2"/>
   <text x="192.0" y="582.0" class="model-name">qwen3.8-27b</text>
   <text x="192.0" y="598.0" class="model-backend">(groq)</text>
-  <rect x="302.0" y="125.0" width="188.0" height="440.0" rx="6" fill="url(#pass-grad)" stroke="#238636" stroke-width="1.2" stroke-dasharray="3,3"/>
-  <rect x="364.0" y="107.0" width="64" height="17" rx="8" fill="#238636"/>
-  <text x="396.0" y="119.0" class="badge-text" fill="#ffffff">PASSED</text>
   <rect x="354.0" y="135.0" width="38" height="425.0" rx="3" fill="#38bdf8"/>
   <line x1="373.0" y1="135.0" x2="373.0" y2="203.5" stroke="#0369a1" stroke-width="2"/>
   <line x1="368.0" y1="135.0" x2="378.0" y2="135.0" stroke="#0369a1" stroke-width="2"/>

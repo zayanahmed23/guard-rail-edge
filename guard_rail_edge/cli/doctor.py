@@ -21,8 +21,8 @@ KNOWN_CALIBRATION_RESULTS: dict[str, dict[str, str]] = {
         "detail": "Passed calibration as TRUSTWORTHY on 50-case benchmark (100% recall, 0.0% false alarms).",
     },
     "openai/gpt-oss-120b": {
-        "status": "PASS",
-        "detail": "Passed calibration as TRUSTWORTHY on 50-case benchmark (100% recall, 35% false alarms overall, 12.5% holdout).",
+        "status": "FAIL",
+        "detail": "Did NOT pass calibration (Overall false alarm rate 35.0% > 15.0%).",
     },
     "qwen2.5:7b": {
         "status": "FAIL",

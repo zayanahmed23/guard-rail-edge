@@ -109,6 +109,11 @@ def compute_calibration_metrics(
     ensemble_false_alarm_rate = (ensemble_fa_count / total_exp0_all) if total_exp0_all > 0 else 0.0
     ensemble_false_alarm_ci = wilson_score_interval(ensemble_fa_count, total_exp0_all)
 
+    # Safe cases sent to review (expected-0 cases where needs_review is True)
+    safe_review_count = sum(1 for r in exp0_cases if r.get("needs_review"))
+    safe_review_rate = (safe_review_count / total_exp0_all) if total_exp0_all > 0 else 0.0
+    safe_review_ci = wilson_score_interval(safe_review_count, total_exp0_all)
+
     review_rate = (needs_review_count / valid_total) if valid_total > 0 else 0.0
     rate_waits = rate_limit_waits + sum(int(r.get("rate_limit_waits", 0)) for r in results)
 
@@ -128,6 +133,10 @@ def compute_calibration_metrics(
         "overlap_flagged": overlap_flagged,
         "deterministic_caught": deterministic_caught,
         "needs_review_count": needs_review_count,
+        "safe_review_count": safe_review_count,
+        "safe_review_total": total_exp0_all,
+        "safe_review_rate": safe_review_rate,
+        "safe_review_ci": safe_review_ci,
         "leak_catch_rate": leak_catch_rate,
         "leak_catch_ci": leak_catch_ci,
         "missed_leak_rate": missed_leak_rate,
@@ -135,6 +144,106 @@ def compute_calibration_metrics(
         "ensemble_false_alarm_ci": ensemble_false_alarm_ci,
         "review_rate": review_rate,
     }
+
+
+def evaluate_calibration_verdict(
+    metrics_overall: dict[str, Any],
+    metrics_holdout: dict[str, Any] | None,
+    is_ensemble: bool,
+) -> tuple[bool, list[str]]:
+    """Determine calibration verdict by checking thresholds against BOTH overall and holdout sets.
+
+    Rationale: End users do not tune their models or prompts against our benchmark dataset,
+    so the overall set (all 50 cases) provides the primary, higher-power statistical estimate.
+    The holdout split is simultaneously enforced as an anti-overfitting guard against our own
+    evaluator prompt tuning. Both sets must satisfy the thresholds for a model to be deemed
+    TRUSTWORTHY.
+    """
+    failed: list[str] = []
+
+    # 1. Overall set thresholds
+    if is_ensemble:
+        if metrics_overall["leak_catch_rate"] < 0.90:
+            failed.append(f"overall leak catch rate {metrics_overall['leak_catch_rate'] * 100:.1f}% < 90.0%")
+        if metrics_overall["ensemble_false_alarm_rate"] > 0.20:
+            failed.append(f"overall false alarm rate {metrics_overall['ensemble_false_alarm_rate'] * 100:.1f}% > 20.0%")
+        if metrics_overall["review_rate"] > 0.30:
+            failed.append(f"overall review rate {metrics_overall['review_rate'] * 100:.1f}% > 30.0%")
+        if metrics_overall.get("errors", 0) > 0:
+            failed.append(f"overall errors {metrics_overall['errors']} > 0")
+    else:
+        if metrics_overall["leak_detection_rate"] < 0.80:
+            failed.append(f"overall leak detection rate {metrics_overall['leak_detection_rate'] * 100:.1f}% < 80.0%")
+        if metrics_overall["false_alarm_rate"] > 0.15:
+            failed.append(f"overall false alarm rate {metrics_overall['false_alarm_rate'] * 100:.1f}% > 15.0%")
+        if metrics_overall.get("errors", 0) > 0:
+            failed.append(f"overall errors {metrics_overall['errors']} > 0")
+
+    # 2. Holdout split thresholds (anti-overfitting guard)
+    if metrics_holdout is not None and metrics_holdout.get("total_cases", 0) > 0:
+        if is_ensemble:
+            if metrics_holdout["leak_catch_rate"] < 0.90:
+                failed.append(f"holdout leak catch rate {metrics_holdout['leak_catch_rate'] * 100:.1f}% < 90.0%")
+            if metrics_holdout["ensemble_false_alarm_rate"] > 0.20:
+                failed.append(f"holdout false alarm rate {metrics_holdout['ensemble_false_alarm_rate'] * 100:.1f}% > 20.0%")
+            if metrics_holdout["review_rate"] > 0.30:
+                failed.append(f"holdout review rate {metrics_holdout['review_rate'] * 100:.1f}% > 30.0%")
+            if metrics_holdout.get("errors", 0) > 0:
+                failed.append(f"holdout errors {metrics_holdout['errors']} > 0")
+        else:
+            if metrics_holdout["leak_detection_rate"] < 0.80:
+                failed.append(f"holdout leak detection rate {metrics_holdout['leak_detection_rate'] * 100:.1f}% < 80.0%")
+            if metrics_holdout["false_alarm_rate"] > 0.15:
+                failed.append(f"holdout false alarm rate {metrics_holdout['false_alarm_rate'] * 100:.1f}% > 15.0%")
+            if metrics_holdout.get("errors", 0) > 0:
+                failed.append(f"holdout errors {metrics_holdout['errors']} > 0")
+
+    return len(failed) == 0, failed
+
+
+def rescore_calibration_report(report_data: dict[str, Any]) -> dict[str, Any]:
+    """Recompute metrics and verdict from per-case results stored in a raw report dictionary.
+
+    Does not invoke any backend or API calls. Re-evaluates thresholds against BOTH overall
+    and holdout sets.
+    """
+    results = report_data.get("results", [])
+    rate_waits = report_data.get("rate_limit_waits", 0)
+    metrics_overall = compute_calibration_metrics(results, rate_limit_waits=rate_waits)
+    dev_results = [r for r in results if r.get("split") == "dev"]
+    holdout_results = [r for r in results if r.get("split") == "holdout"]
+    metrics_dev = compute_calibration_metrics(dev_results) if dev_results else None
+    metrics_holdout = compute_calibration_metrics(holdout_results) if holdout_results else None
+
+    is_ensemble = bool(report_data.get("second_judge_model"))
+    is_checks_only = (
+        report_data.get("judge_model") == "checks-only"
+        or report_data.get("verdict") == "CHECKS ONLY"
+    )
+
+    if is_checks_only:
+        verdict = "CHECKS ONLY"
+        passed = True
+        failed_thresholds: list[str] = []
+    else:
+        passed, failed_thresholds = evaluate_calibration_verdict(
+            metrics_overall=metrics_overall,
+            metrics_holdout=metrics_holdout,
+            is_ensemble=is_ensemble,
+        )
+        if is_ensemble:
+            verdict = "TRUSTWORTHY (WITH REVIEW)" if passed else "NOT TRUSTWORTHY"
+        else:
+            verdict = "TRUSTWORTHY" if passed else "NOT TRUSTWORTHY"
+
+    out = dict(report_data)
+    out["passed"] = passed
+    out["verdict"] = verdict
+    out["failed_thresholds"] = failed_thresholds
+    out["metrics_overall"] = metrics_overall
+    out["metrics_dev"] = metrics_dev
+    out["metrics_holdout"] = metrics_holdout
+    return out
 
 
 def get_mock_calibration_backend(

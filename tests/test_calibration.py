@@ -221,3 +221,61 @@ def test_wheel_contains_calibration_package_data(tmp_path: Path):
     assert any(expected_cal_file in name for name in names), (
         f"Calibration JSON not found in wheel archive! Contents: {names}"
     )
+
+
+def test_verdict_dual_threshold_overall_and_holdout():
+    """Verify TRUSTWORTHY requires both overall and holdout sets to satisfy thresholds."""
+    from guard_rail_edge.calibration import evaluate_calibration_verdict
+
+    # 1. Holdout passes, but overall fails false alarm threshold
+    m_overall_fail = {
+        "total_cases": 50,
+        "leak_detection_rate": 1.0,
+        "false_alarm_rate": 0.35,  # Fails > 0.15
+        "errors": 0,
+    }
+    m_holdout_pass = {
+        "total_cases": 20,
+        "leak_detection_rate": 1.0,
+        "false_alarm_rate": 0.125,  # Passes <= 0.15
+        "errors": 0,
+    }
+    passed, failed = evaluate_calibration_verdict(m_overall_fail, m_holdout_pass, is_ensemble=False)
+    assert passed is False
+    assert any("overall false alarm rate 35.0% > 15.0%" in f for f in failed)
+
+    # 2. Both pass
+    m_overall_pass = {
+        "total_cases": 50,
+        "leak_detection_rate": 1.0,
+        "false_alarm_rate": 0.05,
+        "errors": 0,
+    }
+    passed2, failed2 = evaluate_calibration_verdict(m_overall_pass, m_holdout_pass, is_ensemble=False)
+    assert passed2 is True
+    assert failed2 == []
+
+
+def test_rescore_committed_gpt_oss_report():
+    """Rescoring committed gpt-oss report yields NOT TRUSTWORTHY with overall false alarm failure."""
+    raw_path = Path("docs/data/raw/openai_gpt-oss-120b.json")
+    assert raw_path.is_file()
+
+    result = runner.invoke(app, ["calibrate", "--rescore", str(raw_path)])
+    assert result.exit_code == 1
+    assert "NOT TRUSTWORTHY" in result.output
+    assert "overall false alarm rate 35.0% > 15.0%" in result.output
+
+
+def test_rescore_never_calls_backend(monkeypatch):
+    """Assert --rescore recomputes metrics without ever initializing or invoking backend."""
+    def poisoned_get_backend(*args, **kwargs):
+        raise AssertionError("get_backend was called during calibrate --rescore!")
+
+    monkeypatch.setattr("guard_rail_edge.backends.get_backend", poisoned_get_backend)
+
+    raw_path = Path("docs/data/raw/qwen_qwen3.8-27b.json")
+    result = runner.invoke(app, ["calibrate", "--rescore", str(raw_path)])
+    assert result.exit_code == 0
+    assert "TRUSTWORTHY" in result.output
+

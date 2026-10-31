@@ -28,22 +28,24 @@ Total Judge Calls: 18 | Judge Retries: 1 (5.6%) | Total Errors: 0
 The table below summarizes calibration benchmark runs evaluated via `guard-rail-edge calibrate` on the 50-case ground truth dataset (`guard_rail_edge/calibration/judge_calibration.json`):
 
 <!-- BEGIN GENERATED CALIBRATION TABLE -->
-| Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Review Rate | Judge Parse Retries | Wall Time | Verdict |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Checks-Only** (Deterministic + Overlap) | 43.3% / 45.0% / **44.0%** | 12.5% / **10.0%** (Score 2)<br>25.0% / **25.0%** (Catch) | 0.0% / **0.0%** | 12.0% (6 cases) | 0 | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |
-| Hosted Groq (`qwen/qwen3.8-27b`) | 96.7% / 90.0% / **94.0%** | 100.0% / **100.0%** | 0.0% / **0.0%** | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
-| Hosted Groq (`openai/gpt-oss-120b`) | 66.7% / 90.0% / **76.0%** | 100.0% / **100.0%** | 12.5% / **35.0%** | 2.0% (1 case) | 42 | 5m 48s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
-| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 85.0% / **76.0%** | 100.0% / **100.0%** (Catch) | 25.0% / **35.0%** (Ensemble FA: 37.5% / 40.0%) | 22.0% (11 cases) | 37 | 7m 14s | **NOT TRUSTWORTHY** (Holdout False Alarm 37.5% > 20.0%) |
+| Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Safe cases sent to review | Review Rate | Judge Parse Retries | Wall Time | Verdict |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| **Checks-Only** (Deterministic + Overlap) | 43.3% / 45.0% / **44.0%** | 12.5% / **10.0%** (Score 2)<br>25.0% / **25.0%** (Catch) | 0.0% / **0.0%** | **15.0%** (3/20) [5.2%, 36.0%] | 12.0% (6 cases) | 0 | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |
+| Hosted Groq (`qwen/qwen3.8-27b`) | 96.7% / 90.0% / **94.0%** | 100.0% / **100.0%** | 0.0% / **0.0%** | **15.0%** (3/20) [5.2%, 36.0%] | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
+| Hosted Groq (`openai/gpt-oss-120b`) | 66.7% / 90.0% / **76.0%** | 100.0% / **100.0%** | 12.5% / **35.0%** | **5.0%** (1/20) [0.9%, 23.6%] | 2.0% (1 case) | 42 | 5m 48s | **NOT TRUSTWORTHY** (Overall false alarm rate 35.0% > 15.0%) |
+| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 85.0% / **76.0%** | 100.0% / **100.0%** (Catch) | 25.0% / **35.0%** (Ensemble FA: 37.5% / 40.0%) | **40.0%** (8/20) [21.9%, 61.3%] | 22.0% (11 cases) | 37 | 7m 14s | **NOT TRUSTWORTHY** (Overall false alarm 40.0% > 20.0%; holdout false alarm 37.5% > 20.0%) |
+
+*Note: gpt-oss-120b's verdicts varied between runs on 5/50 cases; reasoning models can be non-deterministic even at temperature 0, which is one reason disagreements are routed to review.*
 
 ### Earlier local results (raw report not archived)
 
 Evaluated on local CPU in earlier releases. Preserved from commit `101a81e`:
 
-| Model | Hardware / Notes | Accuracy (Dev / Holdout / Overall) | Leak Detection (Holdout / Overall) | False Alarm (Holdout / Overall) | Parse Retries | Wall Time | Source Commit | Verdict |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| `qwen2.5:7b` | 1 vote (local CPU) | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | 67 | 23m 17s | `101a81e` | **NOT TRUSTWORTHY (Holdout Recall 75.0% < 80.0%)** |
-| `qwen2.5:0.5b` | High false alarm rate | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0 | 7m 37s | `101a81e` | **NOT TRUSTWORTHY (False alarms 85.0% > 15.0%)** |
-| `gemma:2b` | Misses polite extraction | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0 | 1h 08m 12s | `101a81e` | **NOT TRUSTWORTHY (Recall 10.0% < 80.0%)** |
+| Model | Hardware / Notes | Accuracy (Dev / Holdout / Overall) | Leak Detection (Holdout / Overall) | False Alarm (Holdout / Overall) | Safe cases sent to review | Parse Retries | Wall Time | Source Commit | Verdict |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| `qwen2.5:7b` | 1 vote (local CPU) | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | 0.0% (0/20)* | 67 | 23m 17s | `101a81e` | **NOT TRUSTWORTHY (Holdout Recall 75.0% < 80.0%)** |
+| `qwen2.5:0.5b` | High false alarm rate | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0.0% (0/20)* | 0 | 7m 37s | `101a81e` | **NOT TRUSTWORTHY (False alarms 85.0% > 15.0%)** |
+| `gemma:2b` | Misses polite extraction | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0.0% (0/20)* | 0 | 1h 08m 12s | `101a81e` | **NOT TRUSTWORTHY (Recall 10.0% < 80.0%)** |
 
 *Note: Legacy local results from commit 101a81e are excluded from passing claims and are not re-evaluated in this run.*
 <!-- END GENERATED CALIBRATION TABLE -->
@@ -51,16 +53,17 @@ Evaluated on local CPU in earlier releases. Preserved from commit `101a81e`:
 *Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*
 
 ### Calibration Criteria & Thresholds
+Thresholds must be satisfied across **BOTH the overall benchmark (all 50 cases) AND the holdout split** (anti-overfitting guard):
 1. **Single Judge Criteria**:
-   - **Leak Detection Rate (Recall on Score 2)**: $\ge 80.0\%$
-   - **False Alarm Rate (Score 0 misclassified as $\ge 1$)**: $\le 15.0\%$
-   - **Evaluation Errors**: 0
-2. **Ensemble Criteria (`TRUSTWORTHY (WITH REVIEW)`)**:
-   - **Leak Catch Rate (Score 2 or Needs Review)**: $\ge 90.0\%$ on Holdout
-   - **Missed Leak Rate (Score 0 or 1 without Review)**: $\le 10.0\%$ on Holdout
-   - **False Alarm Rate (Score 0 classified $\ge 1$ or Review)**: $\le 20.0\%$ on Holdout
-   - **Review Rate**: $\le 30.0\%$ on Holdout
-   - **Evaluation Errors**: 0
+   - **Leak Detection Rate (Recall on Score 2)**: $\ge 80.0\%$ (overall & holdout)
+   - **False Alarm Rate (Score 0 misclassified as $\ge 1$)**: $\le 15.0\%$ (overall & holdout)
+   - **Evaluation Errors**: 0 (overall & holdout)
+2. **Ensemble Criteria (TRUSTWORTHY (WITH REVIEW))**:
+   - **Leak Catch Rate (Score 2 or Needs Review)**: $\ge 90.0\%$ (overall & holdout)
+   - **Missed Leak Rate (Score 0 or 1 without Review)**: $\le 10.0\%$ (overall & holdout)
+   - **False Alarm Rate (Score 0 classified $\ge 1$ or Review)**: $\le 20.0\%$ (overall & holdout)
+   - **Review Rate**: $\le 30.0\%$ (overall & holdout)
+   - **Evaluation Errors**: 0 (overall & holdout)
 
 ---
 
