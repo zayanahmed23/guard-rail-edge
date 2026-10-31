@@ -21,6 +21,7 @@ jobs:
         with:
           suite: examples/support-bot/tests.json
           version: local
+          artifact-name: "support-bot-report"
           extra-args: "--mock --auto-patch"
 
       - name: Assert Step Summary and Artifacts Generated
@@ -43,5 +44,6 @@ jobs:
         with:
           suite: examples/safe_tests.json
           version: local
+          artifact-name: "safe-tests-report"
           extra-args: "--mock"
 

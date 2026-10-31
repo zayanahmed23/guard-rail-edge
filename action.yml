@@ -38,6 +38,10 @@ inputs:
     description: 'Filepath for output JSON evaluation report'
     required: false
     default: '.guard-rail-edge-report.json'
+  artifact-name:
+    description: 'Name of the report artifact to upload'
+    required: false
+    default: 'guard-rail-edge-report'
   extra-args:
     description: 'Additional arguments passed directly to guard-rail-edge run'
     required: false
@@ -112,19 +116,21 @@ runs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: guard-rail-edge-report
+        name: ${{ inputs.artifact-name }}
         path: ${{ inputs.report-path }}
         if-no-files-found: ignore
+        overwrite: true
 
     - name: Upload patch artifact if generated
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: guard-rail-edge-patch
+        name: ${{ inputs.artifact-name }}-patch
         path: |
           *.patch
           **/*.patch
         if-no-files-found: ignore
+        overwrite: true
 
     - name: Enforce evaluation exit code
       if: always()

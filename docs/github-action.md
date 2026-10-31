@@ -45,6 +45,7 @@ jobs:
 | `python-version` | Python runtime version to initialize | No | `3.12` |
 | `version` | Package version of `guard-rail-edge` to install (`0.5.1` or `local`) | No | `0.5.1` |
 | `report-path` | Destination filepath for machine-readable JSON evaluation report | No | `.guard-rail-edge-report.json` |
+| `artifact-name` | Name of the report artifact to upload | No | `guard-rail-edge-report` |
 | `extra-args` | Additional command-line flags passed directly to `guard-rail-edge run` | No | `""` |
 
 ---
