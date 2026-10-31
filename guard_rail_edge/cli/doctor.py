@@ -68,8 +68,38 @@ def register_doctor_command(app: typer.Typer) -> None:
     @app.command()
     def doctor(
         config: Path | None = typer.Option(None, "--config", "-c", help="Path to custom config file to check."),
+        model: str | None = typer.Option(None, "--model", "-m", help="Target model to check."),
+        judge_model: str | None = typer.Option(None, "--judge-model", help="Judge model to check."),
+        target_backend: str | None = typer.Option(None, "--target-backend", help="Target backend."),
+        judge_backend: str | None = typer.Option(None, "--judge-backend", help="Judge backend."),
+        preset: str | None = typer.Option(None, "--preset", help="Preset name."),
     ) -> None:
         """Inspect environment, configuration, API credentials, and engine connectivity."""
+        cfg: dict[str, Any] = {}
+        cfg_path: str | None = None
+        cfg_error: ConfigError | None = None
+        try:
+            cfg, cfg_path = resolve_merged_config(custom_config_path=config)
+        except ConfigError as exc:
+            cfg_error = exc
+
+        has_cli_override = any([model, judge_model, target_backend, judge_backend, preset])
+        if cfg_path is None and not has_cli_override:
+            console.print(
+                "[bold yellow]No configuration found. Quick start: guard-rail-edge init --preset groq (free hosted judge) or init --preset mock (offline demo).[/bold yellow]\n"
+            )
+
+        if model is not None:
+            cfg["model"] = model
+        if judge_model is not None:
+            cfg["judge_model"] = judge_model
+        if target_backend is not None:
+            cfg["target_backend"] = target_backend
+        if judge_backend is not None:
+            cfg["judge_backend"] = judge_backend
+        if preset == "mock":
+            cfg["mock"] = True
+
         console.print(
             Panel(
                 "[bold bright_white]guard-rail-edge doctor — System Diagnostics & Readiness Checklist[/bold bright_white]",
@@ -103,17 +133,13 @@ def register_doctor_command(app: typer.Typer) -> None:
         table.add_row("Runtime", "Package Version", "[bold green]OK[/bold green]", f"guard-rail-edge v{__version__}")
 
         # 3. Configuration File
-        cfg: dict[str, Any] = {}
-        cfg_path: str | None = None
-        try:
-            cfg, cfg_path = resolve_merged_config(custom_config_path=config)
-            if cfg_path:
-                table.add_row("Configuration", "Config File", "[bold green]OK[/bold green]", f"Loaded '{cfg_path}' (valid)")
-            else:
-                table.add_row("Configuration", "Config File", "[bold blue]INFO[/bold blue]", "None found; using CLI defaults")
-        except ConfigError as exc:
-            table.add_row("Configuration", "Config File", "[bold red]FAIL[/bold red]", f"{exc}")
-            blocking_errors.append(str(exc))
+        if cfg_error is not None:
+            table.add_row("Configuration", "Config File", "[bold red]FAIL[/bold red]", f"{cfg_error}")
+            blocking_errors.append(str(cfg_error))
+        elif cfg_path:
+            table.add_row("Configuration", "Config File", "[bold green]OK[/bold green]", f"Loaded '{cfg_path}' (valid)")
+        else:
+            table.add_row("Configuration", "Config File", "[bold blue]INFO[/bold blue]", "None found; using CLI defaults")
 
         # 4. API Key Environment Variables (NEVER PRINT KEY VALUES)
         for env_var, desc in SUPPORTED_API_KEYS:

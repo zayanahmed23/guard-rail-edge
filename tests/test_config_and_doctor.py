@@ -167,3 +167,71 @@ judge_model = "mock-judge"
     res_ok = runner.invoke(app, ["doctor"])
     assert res_ok.exit_code == 0
     assert "All pre-flight checks passed!" in res_ok.output
+
+
+def test_first_run_hint_in_doctor_and_run(tmp_path: Path, monkeypatch):
+    """Test prominent first-run hint appears when no config and no CLI overrides are provided."""
+    hint_msg = "No configuration found. Quick start: guard-rail-edge init --preset groq (free hosted judge) or init --preset mock (offline demo)."
+
+    # 1. Clean tmp directory with no config -> doctor displays hint
+    dir1 = tmp_path / "clean_doctor"
+    dir1.mkdir()
+    monkeypatch.chdir(dir1)
+    res_doc = runner.invoke(app, ["doctor"])
+    assert hint_msg in res_doc.output
+
+    # 2. In tmp directory after init --preset mock -> doctor does NOT display hint
+    dir2 = tmp_path / "init_mock_doctor"
+    dir2.mkdir()
+    monkeypatch.chdir(dir2)
+    runner.invoke(app, ["init", "--preset", "mock"])
+    res_doc_init = runner.invoke(app, ["doctor"])
+    assert hint_msg not in res_doc_init.output
+
+    # 3. In clean tmp directory with --judge-model foo -> doctor does NOT display hint
+    dir3 = tmp_path / "cli_override_doctor"
+    dir3.mkdir()
+    monkeypatch.chdir(dir3)
+    res_doc_cli = runner.invoke(app, ["doctor", "--judge-model", "qwen2.5:7b"])
+    assert hint_msg not in res_doc_cli.output
+
+    # 4. Clean tmp directory with dummy suite -> run displays hint
+    dir4 = tmp_path / "clean_run"
+    dir4.mkdir()
+    monkeypatch.chdir(dir4)
+    dummy_suite = dir4 / "tests.json"
+    dummy_suite.write_text(
+        json.dumps({
+            "system_prompt": "You are a test bot.",
+            "expected_output_format": "Text",
+            "tests": [{"name": "t1", "input": "hello"}],
+        }),
+        encoding="utf-8",
+    )
+    res_run = runner.invoke(app, ["run", "--suite", str(dummy_suite), "--mock"])
+    assert hint_msg in res_run.output
+
+    # 5. After init --preset mock -> run does NOT display hint
+    dir5 = tmp_path / "init_mock_run"
+    dir5.mkdir()
+    monkeypatch.chdir(dir5)
+    runner.invoke(app, ["init", "--preset", "mock"])
+    res_run_init = runner.invoke(app, ["run"])
+    assert hint_msg not in res_run_init.output
+
+    # 6. With CLI override --judge-model foo -> run does NOT display hint
+    dir6 = tmp_path / "cli_override_run"
+    dir6.mkdir()
+    monkeypatch.chdir(dir6)
+    dummy_suite6 = dir6 / "tests.json"
+    dummy_suite6.write_text(
+        json.dumps({
+            "system_prompt": "You are a test bot.",
+            "expected_output_format": "Text",
+            "tests": [{"name": "t1", "input": "hello"}],
+        }),
+        encoding="utf-8",
+    )
+    res_run_cli = runner.invoke(app, ["run", "--suite", str(dummy_suite6), "--mock", "--judge-model", "mock-judge"])
+    assert hint_msg not in res_run_cli.output
+

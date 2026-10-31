@@ -81,6 +81,7 @@ def register_run_command(app: typer.Typer) -> None:
         report_json: Path | None = typer.Option(None, "--report-json", "-r", help="Export report JSON."),
         redact_responses: bool = typer.Option(False, "--redact-responses", help="Redact target responses in report."),
         mock: bool = typer.Option(False, "--mock", help="Run in mock/offline mode."),
+        preset: str | None = typer.Option(None, "--preset", help="Preset configuration ('groq', 'mock', 'ollama')."),
         version: bool | None = typer.Option(None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True),
     ) -> None:
         """Run automated prompt injection tests against target LLM system prompts."""
@@ -93,6 +94,31 @@ def register_run_command(app: typer.Typer) -> None:
             sys.exit(2)
 
         click_core = typer.core._click
+
+        has_cli_model_or_backend = any(
+            ctx.get_parameter_source(p) == click_core.core.ParameterSource.COMMANDLINE
+            for p in [
+                "model",
+                "judge_model",
+                "patch_model",
+                "second_judge_model",
+                "target_backend",
+                "judge_backend",
+                "second_judge_backend",
+                "preset",
+            ]
+        )
+        if cfg_path is None and not has_cli_model_or_backend:
+            console.print(
+                "[bold yellow]No configuration found. Quick start: guard-rail-edge init --preset groq (free hosted judge) or init --preset mock (offline demo).[/bold yellow]\n"
+            )
+
+        if preset == "mock":
+            mock = True
+        elif preset == "groq":
+            target_backend = "groq"
+            judge_backend = "groq"
+            judge_model = "qwen/qwen3.8-27b"
 
         def _get_val(param_name: str, current_val: Any) -> Any:
             if ctx.get_parameter_source(param_name) == click_core.core.ParameterSource.COMMANDLINE:
