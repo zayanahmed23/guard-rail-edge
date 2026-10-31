@@ -40,7 +40,7 @@ PRESET_CONFIGS: dict[str, str] = {
 
 suite = "tests.json"
 target_backend = "groq"
-model = "llama-3.1-8b-instant"
+model = "openai/gpt-oss-20b"
 
 judge_backend = "groq"
 judge_model = "qwen/qwen3.8-27b"

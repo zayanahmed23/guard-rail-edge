@@ -23,7 +23,7 @@ guard-rail-edge run --model llama3.2:3b --judge-model qwen2.5:7b
 - **Key Configuration**: Pass key variable name via `--api-key-env GROQ_API_KEY`. Never hardcode secrets.
 
 ```bash
-guard-rail-edge run --target-backend groq --model llama-3.1-8b-instant \
+guard-rail-edge run --target-backend groq --model openai/gpt-oss-20b \
   --judge-backend groq --judge-model qwen/qwen3.8-27b \
   --api-key-env GROQ_API_KEY
 ```

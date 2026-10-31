@@ -70,7 +70,7 @@ Recommended for fast, calibrated evaluation using Groq's free tier:
 ```toml
 # guard-rail-edge.toml (Groq preset)
 target_backend = "groq"
-model = "llama-3.1-8b-instant"
+model = "openai/gpt-oss-20b"
 
 judge_backend = "groq"
 judge_model = "qwen/qwen3.8-27b"

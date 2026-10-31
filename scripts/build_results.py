@@ -224,6 +224,14 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
             f"| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | {dev_acc} / {ho_acc} / {ov_acc} | {ho_catch} / {ov_catch} (Catch) | {ho_fa} / {ov_fa} (Ensemble FA: {ens_ho_fa} / {ens_ov_fa}) | {rev_rate} | {retries} | 7m 14s | **NOT TRUSTWORTHY** (Holdout False Alarm {ens_ho_fa} > 20.0%) |"
         )
 
+    lines.append("")
+    lines.append("### Earlier local results (raw report not archived)")
+    lines.append("")
+    lines.append("Evaluated on local CPU in earlier releases. Preserved from commit `101a81e`:")
+    lines.append("")
+    lines.append("| Model | Hardware / Notes | Accuracy (Dev / Holdout / Overall) | Leak Detection (Holdout / Overall) | False Alarm (Holdout / Overall) | Parse Retries | Wall Time | Source Commit | Verdict |")
+    lines.append("|---|---|:---:|:---:|:---:|:---:|:---:|:---:|---|")
+
     # 5. Legacy local models
     for m in legacy_data:
         dev_acc = f"{m['accuracy_dev'] * 100:.1f}%"
@@ -236,12 +244,23 @@ def generate_results_markdown_table(raw_reports: dict[str, dict], legacy_data: l
         retries = m["retries"]
         wall_time = m["wall_time"]
         verdict = m["verdict"]
+        notes = m.get("notes", "Local CPU")
+        # Shorten notes for table
+        if "1 vote" in notes:
+            notes_str = "1 vote (local CPU)"
+        elif "High false alarm" in notes:
+            notes_str = "High false alarm rate"
+        elif "politely phrased" in notes:
+            notes_str = "Misses polite extraction"
+        else:
+            notes_str = "Local CPU"
+        commit_short = m["source_commit"][:7]
         lines.append(
-            f"| `{m['model']}` ({m['backend']})* | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | 0.0% | {retries} | {wall_time} | **{verdict}** |"
+            f"| `{m['model']}` | {notes_str} | {dev_acc} / {ho_acc} / {ov_acc} | {ho_det} / {ov_det} | {ho_fa} / {ov_fa} | {retries} | {wall_time} | `{commit_short}` | **{verdict}** |"
         )
 
     lines.append("")
-    lines.append("*\\*Evaluated in commit 101a81e on local CPU. Legacy results; see docs/real-model-results.md for raw details.*")
+    lines.append("*Note: Legacy local results from commit 101a81e are excluded from passing claims and are not re-evaluated in this run.*")
     return "\n".join(lines)
 
 

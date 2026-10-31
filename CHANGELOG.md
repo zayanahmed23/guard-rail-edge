@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **First-Run Friendly Guidance**:
   - `doctor` and `run` now surface a friendly quickstart hint when executed in an unconfigured directory without command-line model overrides: `"No configuration found. Quick start: guard-rail-edge init --preset groq (free hosted judge) or init --preset mock (offline demo)."`.
 
+### Fixed
+- Removed calibration rows for models that were not actually evaluated (added in 9a2f9e0); results are now generated from archived raw reports; corrected confidence intervals.
+
 ### Changed
 - **Automated Benchmark Generation (`scripts/build_results.py`)**:
   - Benchmark tables in `docs/real-model-results.md`, `README.md`, and `docs/data/judge_calibration.json` are now dynamically built from raw evaluation reports with correctly parameterized 95% Wilson score intervals ($n=20$ for leaks, $n=20$ for false alarms).
