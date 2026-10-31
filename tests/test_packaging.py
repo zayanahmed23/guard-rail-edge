@@ -99,9 +99,9 @@ def test_wheel_contains_only_package_files(tmp_path: Path):
         )
 
 
-def test_version_is_0_5_0():
-    """Assert package version is bumped to 0.5.0."""
-    assert __version__ == "0.5.0"
+def test_version_is_0_5_1():
+    """Assert package version is bumped to 0.5.1."""
+    assert __version__ == "0.5.1"
 
 
 def test_pyproject_metadata():

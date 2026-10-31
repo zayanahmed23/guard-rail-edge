@@ -1,0 +1,139 @@
+name: 'Guard-Rail-Edge Security Gate'
+description: 'Automated prompt injection & LLM jailbreak security evaluation gate for CI/CD'
+author: 'Zayan Ahmed'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  suite:
+    description: 'Path to the JSON test suite file'
+    required: false
+    default: 'tests.json'
+  config:
+    description: 'Optional path to custom config file (guard-rail-edge.toml)'
+    required: false
+    default: ''
+  judge-backend:
+    description: 'Evaluator backend: ollama or groq'
+    required: false
+    default: ''
+  judge-model:
+    description: 'Judge model name'
+    required: false
+    default: ''
+  on-review:
+    description: "Action on needs-review verdicts: 'fail' or 'warn'"
+    required: false
+    default: 'fail'
+  python-version:
+    description: 'Python version to set up'
+    required: false
+    default: '3.12'
+  version:
+    description: "Package version to install (or 'local' to use checkout)"
+    required: false
+    default: '0.5.1'
+  report-path:
+    description: 'Filepath for output JSON evaluation report'
+    required: false
+    default: '.guard-rail-edge-report.json'
+  extra-args:
+    description: 'Additional arguments passed directly to guard-rail-edge run'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install guard-rail-edge
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "local" ]; then
+          echo "Installing local workspace in editable mode..."
+          pip install "${{ github.action_path }}"
+        else
+          echo "Installing guard-rail-edge==${{ inputs.version }}..."
+          pip install "guard-rail-edge==${{ inputs.version }}"
+        fi
+
+    - name: Run guard-rail-edge doctor
+      shell: bash
+      continue-on-error: true
+      run: |
+        guard-rail-edge doctor || true
+
+    - name: Run guard-rail-edge evaluation
+      id: eval
+      shell: bash
+      run: |
+        ARGS=("--suite" "${{ inputs.suite }}" "--on-review" "${{ inputs.on-review }}" "--report-json" "${{ inputs.report-path }}")
+        if [ -n "${{ inputs.config }}" ]; then
+          ARGS+=("--config" "${{ inputs.config }}")
+        fi
+        if [ -n "${{ inputs.judge-backend }}" ]; then
+          ARGS+=("--judge-backend" "${{ inputs.judge-backend }}")
+        fi
+        if [ -n "${{ inputs.judge-model }}" ]; then
+          ARGS+=("--judge-model" "${{ inputs.judge-model }}")
+        fi
+        if [ -n "${{ inputs.extra-args }}" ]; then
+          read -ra EXTRA <<< "${{ inputs.extra-args }}"
+          ARGS+=("${EXTRA[@]}")
+        fi
+
+        echo "Executing: guard-rail-edge run ${ARGS[*]}"
+        set +e
+        guard-rail-edge run "${ARGS[@]}"
+        RUN_EXIT_CODE=$?
+        echo "exit_code=$RUN_EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+    - name: Generate Step Summary
+      if: always()
+      shell: bash
+      run: |
+        EXIT_CODE="${{ steps.eval.outputs.exit_code }}"
+        if [ -z "$EXIT_CODE" ]; then
+          EXIT_CODE=2
+        fi
+        if [ -f "${{ github.action_path }}/scripts/format_step_summary.py" ]; then
+          python "${{ github.action_path }}/scripts/format_step_summary.py" \
+            --report "${{ inputs.report-path }}" \
+            --exit-code "$EXIT_CODE" \
+            --output "$GITHUB_STEP_SUMMARY" || true
+        fi
+
+    - name: Upload evaluation report artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: guard-rail-edge-report
+        path: ${{ inputs.report-path }}
+        if-no-files-found: ignore
+
+    - name: Upload patch artifact if generated
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: guard-rail-edge-patch
+        path: |
+          *.patch
+          **/*.patch
+        if-no-files-found: ignore
+
+    - name: Enforce evaluation exit code
+      if: always()
+      shell: bash
+      run: |
+        EXIT_CODE="${{ steps.eval.outputs.exit_code }}"
+        if [ -z "$EXIT_CODE" ]; then
+          EXIT_CODE=2
+        fi
+        echo "Exiting with guard-rail-edge return code: $EXIT_CODE"
+        exit "$EXIT_CODE"
+

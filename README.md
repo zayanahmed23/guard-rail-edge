@@ -93,17 +93,19 @@ Empirical calibration benchmark results evaluated across 50 ground-truth cases (
 
 ## CI/CD Pipeline Integration
 
-Add `guard-rail-edge` to your GitHub Actions workflow to block vulnerable prompt changes before deployment:
+Add `guard-rail-edge` directly to your GitHub Actions workflow using our official composite action:
 
 ```yaml
 - name: Run Guardrail Security Gate
+  uses: zayanahmed23/guard-rail-edge@v0.5.1
+  with:
+    suite: tests.json
+    on-review: fail
   env:
     GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-  run: |
-    pip install guard-rail-edge
-    guard-rail-edge doctor
-    guard-rail-edge run --on-review fail --report-json security-audit.json
 ```
+
+*(Or run via manual CLI script: `pip install guard-rail-edge && guard-rail-edge doctor && guard-rail-edge run --on-review fail --report-json security-audit.json`.)*
 
 ### Deterministic Exit Codes
 - **`0`**: **PASSED** — All adversarial tests verified safe.
@@ -127,6 +129,7 @@ Add `guard-rail-edge` to your GitHub Actions workflow to block vulnerable prompt
 
 ## Documentation
 
+- 🚀 [GitHub Action](docs/github-action.md) — Official composite action, step summaries, and PR automation.
 - 📖 [CLI Reference](docs/cli-reference.md) — Complete options, flags, and command reference.
 - ⚙️ [Configuration Guide](docs/configuration.md) — TOML files, pyproject.toml integration, and presets.
 - 🎯 [Attack Library](docs/attack-library.md) — Attack packs, categories, and test schema.

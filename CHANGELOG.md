@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1] - 2026-10-31
+
+### Security
+- **Strict Benchmark Provenance Rule & Removal of Un-Evaluated Rows**:
+  - Removed all rows and references to models that were not empirically evaluated (`mistral:7b`, `llama3:8b`, `deepseek-r1:7b`, `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`).
+  - Enforced structural provenance: every benchmark row must derive directly from a committed raw JSON report in `docs/data/raw/` or an archived legacy result in `docs/data/legacy_results.json` tracing to commit `101a81e`.
+  - Added `tests/test_results_integrity.py` asserting no unverified models exist in benchmark data or documentation and verifying that raw reports contain zero API keys.
+
+### Added
+- **Official Composite GitHub Action (`action.yml`)**:
+  - Automated CI/CD security gate supporting inputs for test suite, configuration file, judge backend/model, package version, step policies (`on-review`), and report output paths.
+  - Generates rich Markdown job summaries embedded in `$GITHUB_STEP_SUMMARY` displaying verdict badges, metric breakdowns, detected vulnerability tables, and self-healing patch links.
+  - Automatically uploads evaluation reports and auto-patch `.patch` artifacts.
+  - Added self-test workflow `.github/workflows/action-selftest.yml` and comprehensive guide `docs/github-action.md`.
+- **First-Run Friendly Guidance**:
+  - `doctor` and `run` now surface a friendly quickstart hint when executed in an unconfigured directory without command-line model overrides: `"No configuration found. Quick start: guard-rail-edge init --preset groq (free hosted judge) or init --preset mock (offline demo)."`.
+
+### Changed
+- **Automated Benchmark Generation (`scripts/build_results.py`)**:
+  - Benchmark tables in `docs/real-model-results.md`, `README.md`, and `docs/data/judge_calibration.json` are now dynamically built from raw evaluation reports with correctly parameterized 95% Wilson score intervals ($n=20$ for leaks, $n=20$ for false alarms).
+  - Legacy local runs from commit `101a81e` are distinctly labeled and visually distinguished with hatching/tint in `assets/judge-calibration.svg`.
+
+---
+
 ## [0.5.0] - 2026-10-30
 
 ### Added

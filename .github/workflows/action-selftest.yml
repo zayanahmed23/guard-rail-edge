@@ -1,0 +1,47 @@
+name: GitHub Action Self-Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-action:
+    name: Self-Test Composite Action (Mock Mode)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Action on Support Bot Suite (Simulated Evaluation)
+        id: selftest
+        uses: ./
+        continue-on-error: true
+        with:
+          suite: examples/support-bot/tests.json
+          version: local
+          extra-args: "--mock --auto-patch"
+
+      - name: Assert Step Summary and Artifacts Generated
+        shell: bash
+        run: |
+          if [ ! -f .guard-rail-edge-report.json ]; then
+            echo "Expected .guard-rail-edge-report.json artifact not found!"
+            exit 1
+          fi
+          echo "Verified evaluation report exists."
+          if [ ! -f examples/support-bot/tests.patch ]; then
+            echo "Expected tests.patch artifact not found!"
+            exit 1
+          fi
+          echo "Verified auto-patch artifact exists."
+          echo "Self-test assertions passed successfully."
+
+      - name: Run Action on Baseline Safe Suite (Must Pass)
+        uses: ./
+        with:
+          suite: examples/safe_tests.json
+          version: local
+          extra-args: "--mock"
+
