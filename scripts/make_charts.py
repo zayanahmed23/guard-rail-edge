@@ -49,6 +49,14 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
       <stop offset="0%" stop-color="#238636" stop-opacity="0.18"/>
       <stop offset="100%" stop-color="#238636" stop-opacity="0.04"/>
     </linearGradient>
+    <pattern id="legacy-leak-pat" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="#1e293b"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#38bdf8" stroke-width="2.5"/>
+    </pattern>
+    <pattern id="legacy-fa-pat" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="#1e293b"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#f87171" stroke-width="2.5"/>
+    </pattern>
   </defs>
   <rect width="100%" height="100%" fill="url(#bg-grad)"/>
   <rect x="1" y="1" width="1198" height="673" rx="8" fill="none" stroke="#30363d" stroke-width="1.5"/>
@@ -59,22 +67,25 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         '  <text x="90" y="48" class="title">Judge Calibration: Leak Detection vs False Alarm Rate (50 cases)</text>'
     )
     svg_parts.append(
-        '  <text x="90" y="74" class="subtitle">Only 2 of 8 models passed calibration. Small local models fail silently.</text>'
+        '  <text x="90" y="74" class="subtitle">Fresh Groq evaluations vs legacy local CPU models (commit 101a81e). Small local models fail silently.</text>'
     )
 
     # Legend at top right
     svg_parts.append("""  <g id="legend">
-    <rect x="710" y="36" width="16" height="12" rx="3" fill="#38bdf8"/>
-    <text x="732" y="46" class="legend-text">Leak Detection Rate</text>
+    <rect x="670" y="36" width="16" height="12" rx="3" fill="#38bdf8"/>
+    <text x="692" y="46" class="legend-text">Leak Detection</text>
 
-    <rect x="880" y="36" width="16" height="12" rx="3" fill="#f87171"/>
-    <text x="902" y="46" class="legend-text">False Alarm Rate</text>
+    <rect x="805" y="36" width="16" height="12" rx="3" fill="#f87171"/>
+    <text x="827" y="46" class="legend-text">False Alarm</text>
 
-    <line x1="710" y1="68" x2="726" y2="68" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="732" y="72" class="legend-text" fill="#22c55e">Min Catch (>=80%)</text>
+    <rect x="925" y="36" width="16" height="12" rx="3" fill="url(#legacy-leak-pat)" stroke="#8b949e" stroke-width="1"/>
+    <text x="947" y="46" class="legend-text">Legacy CPU (101a81e)</text>
 
-    <line x1="880" y1="68" x2="896" y2="68" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="902" y="72" class="legend-text">Max FA (<=15%)</text>
+    <line x1="670" y1="68" x2="686" y2="68" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,3"/>
+    <text x="692" y="72" class="legend-text" fill="#22c55e">Min Catch (>=80%)</text>
+
+    <line x1="805" y1="68" x2="821" y2="68" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
+    <text x="827" y="72" class="legend-text">Max FA (<=15%)</text>
   </g>""")
 
     # Gridlines and y-axis labels
@@ -103,18 +114,19 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
     )
 
     # Bars and model groups
-    bar_width = 30
-    bar_gap = 6
+    bar_width = 38
+    bar_gap = 8
     group_width = (bar_width * 2) + bar_gap
 
     for i, m in enumerate(models_data):
         x_center = chart_left + (i * slot_width) + (slot_width / 2.0)
         x_start = x_center - (group_width / 2.0)
+        is_legacy = bool(m.get("is_legacy", False))
 
         # Highlight box for passed models
         if m["passed"]:
-            box_x = chart_left + (i * slot_width) + 4
-            box_w = slot_width - 8
+            box_x = chart_left + (i * slot_width) + 8
+            box_w = slot_width - 16
             svg_parts.append(
                 f'  <rect x="{box_x:.1f}" y="{chart_top - 10:.1f}" width="{box_w:.1f}" height="{chart_height + 15:.1f}" rx="6" fill="url(#pass-grad)" stroke="#238636" stroke-width="1.2" stroke-dasharray="3,3"/>'
             )
@@ -131,8 +143,10 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         y_leak = y_pos(leak_val)
         h_leak = chart_bottom - y_leak
         x_leak = x_start
+        fill_leak = "url(#legacy-leak-pat)" if is_legacy else "#38bdf8"
+        stroke_leak = ' stroke="#38bdf8" stroke-width="1.2"' if is_legacy else ""
         svg_parts.append(
-            f'  <rect x="{x_leak:.1f}" y="{y_leak:.1f}" width="{bar_width}" height="{h_leak:.1f}" rx="3" fill="#38bdf8"/>'
+            f'  <rect x="{x_leak:.1f}" y="{y_leak:.1f}" width="{bar_width}" height="{h_leak:.1f}" rx="3" fill="{fill_leak}"{stroke_leak}/>'
         )
 
         # Wilson CI for Bar 1
@@ -154,8 +168,10 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         y_fa = y_pos(fa_val)
         h_fa = chart_bottom - y_fa
         x_fa = x_start + bar_width + bar_gap
+        fill_fa = "url(#legacy-fa-pat)" if is_legacy else "#f87171"
+        stroke_fa = ' stroke="#f87171" stroke-width="1.2"' if is_legacy else ""
         svg_parts.append(
-            f'  <rect x="{x_fa:.1f}" y="{y_fa:.1f}" width="{bar_width}" height="{h_fa:.1f}" rx="3" fill="#f87171"/>'
+            f'  <rect x="{x_fa:.1f}" y="{y_fa:.1f}" width="{bar_width}" height="{h_fa:.1f}" rx="3" fill="{fill_fa}"{stroke_fa}/>'
         )
 
         # Wilson CI for Bar 2
@@ -179,7 +195,8 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         svg_parts.append(
             f'  <text x="{x_center:.1f}" y="{chart_bottom + 22:.1f}" class="model-name">{short_name}</text>'
         )
-        backend_label = f"({m['backend']})"
+        backend_suffix = ", legacy" if is_legacy else ""
+        backend_label = f"({m['backend']}{backend_suffix})"
         svg_parts.append(
             f'  <text x="{x_center:.1f}" y="{chart_bottom + 38:.1f}" class="model-backend">{backend_label}</text>'
         )
@@ -199,4 +216,3 @@ if __name__ == "__main__":
     out_file = Path("assets/judge-calibration.svg")
     generate_judge_calibration_svg(data_file, out_file)
     print(f"Generated chart at {out_file}")
-

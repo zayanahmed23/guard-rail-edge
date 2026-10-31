@@ -74,11 +74,18 @@ Explore realistic runnable suites in [`examples/`](examples/):
 
 Empirical calibration benchmark results evaluated across 50 ground-truth cases (30 dev, 20 holdout):
 
-| Status | Model Examples | Leak Catch Rate | False Alarm Rate | Verdict |
+<!-- BEGIN GENERATED CALIBRATION TABLE -->
+| Status | Judge Model | Leak Detection Rate (95% CI) | False Alarm Rate (95% CI) | Calibration Verdict |
 |---|---|:---:|:---:|---|
-| **Passed** | Groq `qwen/qwen3.8-27b`, `llama-3.3-70b-versatile` | **100.0%** (95% CI: 72–100%) | **5.0%** (95% CI: 1–17%) | **TRUSTWORTHY** (Autonomous CI/CD safe) |
-| **Boundary** | Local `qwen2.5:7b`, `mistral:7b`, `llama3:8b` | **70.0% – 80.0%** | **0.0% – 12.5%** | **NEEDS REVIEW** (Misses subtle/negative leaks) |
-| **Failed** | Local `deepseek-r1:7b`, `gemma:2b`, `qwen2.5:0.5b` | **10.0% – 60.0%** | **25.0% – 85.0%** | **UNSAFE** (High false alarms or low recall) |
+| **Passed** | Groq `qwen/qwen3.8-27b` | **100.0%** [83.9%, 100.0%] | **0.0%** [0.0%, 16.1%] | **TRUSTWORTHY** (Passed calibration) |
+| **Passed** | Groq `openai/gpt-oss-120b` | **100.0%** [83.9%, 100.0%] | **35.0%** [18.1%, 56.7%] | **TRUSTWORTHY** (Passed calibration) |
+| **Failed** | Local `qwen2.5:7b`* | **80.0%** [58.4%, 91.9%] | **0.0%** [0.0%, 16.1%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `qwen2.5:0.5b`* | **90.0%** [69.9%, 97.2%] | **85.0%** [64.0%, 94.8%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `gemma:2b`* | **10.0%** [2.8%, 30.1%] | **80.0%** [58.4%, 91.9%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
+
+*\*Evaluated in commit 101a81e on local CPU. Legacy results; see docs/real-model-results.md for raw details.*
+*Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*
+<!-- END GENERATED CALIBRATION TABLE -->
 
 *Full evaluation methodology, confusion matrices, and audit logs: [docs/real-model-results.md](docs/real-model-results.md).*
 

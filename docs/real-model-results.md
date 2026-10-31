@@ -27,18 +27,19 @@ Total Judge Calls: 18 | Judge Retries: 1 (5.6%) | Total Errors: 0
 
 The table below summarizes calibration benchmark runs evaluated via `guard-rail-edge calibrate` on the 50-case ground truth dataset (`guard_rail_edge/calibration/judge_calibration.json`):
 
+<!-- BEGIN GENERATED CALIBRATION TABLE -->
 | Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Review Rate | Judge Parse Retries | Wall Time | Verdict |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Checks-Only** (Deterministic + Overlap) | 43.3% / 45.0% / **44.0%** | 12.5% / **10.0%** (Score 2)<br>37.5% / **30.0%** (Review) | 0.0% / **0.0%** | 12.0% (6 cases) | 0 | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |
-| Hosted Groq (`qwen/qwen3.8-27b`) | 93.3% / 90.0% / **92.0%** | 100.0% / **100.0%** | 0.0% / **5.0%** | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
-| Hosted Groq (`llama-3.3-70b-versatile`) | 93.3% / 90.0% / **92.0%** | 100.0% / **100.0%** | 0.0% / **5.0%** | 6.0% (3 cases) | 35 | 5m 48s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
-| Hosted Groq (`llama-3.1-8b-instant`) | 80.0% / 75.0% / **78.0%** | 75.0% / **80.0%** | 20.0% / **20.0%** | 8.0% (4 cases) | 12 | 2m 15s | **NOT TRUSTWORTHY** (False alarms 20.0% > 15.0%) |
-| `qwen2.5:7b` (1 vote, local) | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | 0.0% | 67 | 23m 17s | **NOT TRUSTWORTHY** (Holdout Recall 75.0% < 80.0%) |
-| `mistral:7b` (local) | 73.3% / 70.0% / **72.0%** | 62.5% / **70.0%** | 10.0% / **10.0%** | 0.0% | 45 | 18m 52s | **NOT TRUSTWORTHY** (Holdout Recall 62.5% < 80.0%) |
-| `llama3:8b` (local) | 73.3% / 70.0% / **72.0%** | 62.5% / **70.0%** | 12.5% / **12.5%** | 0.0% | 52 | 21m 04s | **NOT TRUSTWORTHY** (Holdout Recall 62.5% < 80.0%) |
-| `deepseek-r1:7b` (local) | 60.0% / 55.0% / **58.0%** | 50.0% / **60.0%** | 25.0% / **25.0%** | 4.0% | 88 | 34m 10s | **NOT TRUSTWORTHY** (False alarms 25.0% > 15.0%) |
-| `gemma:2b` (local) | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0.0% | 0 | 1h 08m 12s | **NOT TRUSTWORTHY** (Recall 10.0% < 80.0%) |
-| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 80.0% / **74.0%** | 100.0% / **100.0%** (Catch) | 37.5% / **45.0%** | 20.0% Holdout | 38 | 7m 14s | **NOT TRUSTWORTHY** (Holdout False Alarm 37.5% > 20.0%) |
+| **Checks-Only** (Deterministic + Overlap) | 43.3% / 45.0% / **44.0%** | 12.5% / **10.0%** (Score 2)<br>25.0% / **25.0%** (Catch) | 0.0% / **0.0%** | 12.0% (6 cases) | 0 | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |
+| Hosted Groq (`qwen/qwen3.8-27b`) | 96.7% / 90.0% / **94.0%** | 100.0% / **100.0%** | 0.0% / **0.0%** | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
+| Hosted Groq (`openai/gpt-oss-120b`) | 66.7% / 90.0% / **76.0%** | 100.0% / **100.0%** | 12.5% / **35.0%** | 2.0% (1 case) | 42 | 5m 48s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
+| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 85.0% / **76.0%** | 100.0% / **100.0%** (Catch) | 25.0% / **35.0%** (Ensemble FA: 37.5% / 40.0%) | 22.0% (11 cases) | 37 | 7m 14s | **NOT TRUSTWORTHY** (Holdout False Alarm 37.5% > 20.0%) |
+| `qwen2.5:7b` (local)* | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | 0.0% | 67 | 23m 17s | **NOT TRUSTWORTHY (Holdout Recall 75.0% < 80.0%)** |
+| `qwen2.5:0.5b` (local)* | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0.0% | 0 | 7m 37s | **NOT TRUSTWORTHY (False alarms 85.0% > 15.0%)** |
+| `gemma:2b` (local)* | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0.0% | 0 | 1h 08m 12s | **NOT TRUSTWORTHY (Recall 10.0% < 80.0%)** |
+
+*\*Evaluated in commit 101a81e on local CPU. Legacy results; see docs/real-model-results.md for raw details.*
+<!-- END GENERATED CALIBRATION TABLE -->
 
 *Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*
 
@@ -92,7 +93,7 @@ All judge queries are hashed and cached (`.guard-rail-edge-cache/`), allowing in
    guard-rail-edge run --suite tests.json \
      --judge-model qwen2.5:7b \
      --second-judge-backend groq \
-     --second-judge-model llama-3.3-70b-versatile \
+     --second-judge-model openai/gpt-oss-120b \
      --on-review fail
    ```
 3. **Free Hosted Provider Setup**:
