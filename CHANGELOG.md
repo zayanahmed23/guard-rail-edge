@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.3] - 2026-10-31
+
+### Fixed
+- Fixed: removed unsourced wall times from results table; verdict text and rows now generated from raw reports; legacy review column shows n/a.
+
 ## [0.5.2] - 2026-10-31
 
 ### Fixed

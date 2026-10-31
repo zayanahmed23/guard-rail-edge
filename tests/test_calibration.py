@@ -113,8 +113,23 @@ def test_calibrate_mock_clean_run(tmp_path: Path):
     assert "false_alarm_ci" in data["metrics_overall"]
     assert "judge_parse_retries" in data
     assert "rate_limit_waits" in data
+    assert "elapsed_seconds" in data
+    assert isinstance(data["elapsed_seconds"], (int, float))
+    assert data["elapsed_seconds"] >= 0.0
     assert "Judge Parse Retries" in result.output
     assert "Rate-Limit Waits" in result.output
+
+
+def test_calibrate_report_json_includes_elapsed_seconds(tmp_path: Path):
+    """Assert calibrate --report-json output includes elapsed_seconds with fake/mock backend."""
+    report_file = tmp_path / "timed_report.json"
+    result = runner.invoke(app, ["calibrate", "--mock", "--report-json", str(report_file)])
+    assert result.exit_code == 0
+    assert report_file.exists()
+    data = json.loads(report_file.read_text(encoding="utf-8"))
+    assert "elapsed_seconds" in data
+    assert isinstance(data["elapsed_seconds"], (int, float))
+    assert data["elapsed_seconds"] >= 0.0
 
 
 def test_calibrate_mock_judge_always_returns_one(monkeypatch, tmp_path: Path):

@@ -30,10 +30,10 @@ The table below summarizes calibration benchmark runs evaluated via `guard-rail-
 <!-- BEGIN GENERATED CALIBRATION TABLE -->
 | Judge Setup | Accuracy (Dev / Holdout / Overall) | Leak Detection / Catch Rate (Holdout / Overall) | False Alarm Rate (Holdout / Overall) | Safe cases sent to review | Review Rate | Judge Parse Retries | Wall Time | Verdict |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| **Checks-Only** (Deterministic + Overlap) | 43.3% / 45.0% / **44.0%** | 12.5% / **10.0%** (Score 2)<br>25.0% / **25.0%** (Catch) | 0.0% / **0.0%** | **15.0%** (3/20) [5.2%, 36.0%] | 12.0% (6 cases) | 0 | 0.0s | **CHECKS ONLY** (Code baseline, no LLM required) |
-| Hosted Groq (`qwen/qwen3.8-27b`) | 96.7% / 90.0% / **94.0%** | 100.0% / **100.0%** | 0.0% / **0.0%** | **15.0%** (3/20) [5.2%, 36.0%] | 6.0% (3 cases) | 40 | 6m 19s | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
-| Hosted Groq (`openai/gpt-oss-120b`) | 66.7% / 90.0% / **76.0%** | 100.0% / **100.0%** | 12.5% / **35.0%** | **5.0%** (1/20) [0.9%, 23.6%] | 2.0% (1 case) | 42 | 5m 48s | **NOT TRUSTWORTHY** (Overall false alarm rate 35.0% > 15.0%) |
-| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 85.0% / **76.0%** | 100.0% / **100.0%** (Catch) | 25.0% / **35.0%** (Ensemble FA: 37.5% / 40.0%) | **40.0%** (8/20) [21.9%, 61.3%] | 22.0% (11 cases) | 37 | 7m 14s | **NOT TRUSTWORTHY** (Overall false alarm 40.0% > 20.0%; holdout false alarm 37.5% > 20.0%) |
+| **Checks-Only** (Deterministic + Overlap) | 43.3% / 45.0% / **44.0%** | 12.5% / **10.0%** (Score 2)<br>25.0% / **25.0%** (Catch) | 0.0% / **0.0%** | **15.0%** (3/20) [5.2%, 36.0%] | 12.0% (6 cases) | 0 | not recorded | **CHECKS ONLY** (Code baseline, no LLM required) |
+| Hosted Groq (`qwen/qwen3.8-27b`) | 96.7% / 90.0% / **94.0%** | 100.0% / **100.0%** | 0.0% / **0.0%** | **15.0%** (3/20) [5.2%, 36.0%] | 6.0% (3 cases) | 40 | not recorded | **TRUSTWORTHY** (Passed calibration on 50-case benchmark) |
+| Hosted Groq (`openai/gpt-oss-120b`) | 66.7% / 90.0% / **76.0%** | 100.0% / **100.0%** | 12.5% / **35.0%** | **5.0%** (1/20) [0.9%, 23.6%] | 2.0% (1 case) | 42 | not recorded | **NOT TRUSTWORTHY** (Overall false alarm rate 35.0% > 15.0%) |
+| Hosted Ensemble: `qwen3.8-27b` + `gpt-oss-120b` (Groq) | 70.0% / 85.0% / **76.0%** | 100.0% / **100.0%** (Catch) | 25.0% / **35.0%** (Ensemble FA: 37.5% / 40.0%) | **40.0%** (8/20) [21.9%, 61.3%] | 22.0% (11 cases) | 37 | not recorded | **NOT TRUSTWORTHY** (Overall false alarm rate 40.0% > 20.0%; Holdout false alarm rate 37.5% > 20.0%) |
 
 *Note: gpt-oss-120b's verdicts varied between runs on 5/50 cases; reasoning models can be non-deterministic even at temperature 0, which is one reason disagreements are routed to review.*
 
@@ -43,9 +43,9 @@ Evaluated on local CPU in earlier releases. Preserved from commit `101a81e`:
 
 | Model | Hardware / Notes | Accuracy (Dev / Holdout / Overall) | Leak Detection (Holdout / Overall) | False Alarm (Holdout / Overall) | Safe cases sent to review | Parse Retries | Wall Time | Source Commit | Verdict |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| `qwen2.5:7b` | 1 vote (local CPU) | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | 0.0% (0/20)* | 67 | 23m 17s | `101a81e` | **NOT TRUSTWORTHY (Holdout Recall 75.0% < 80.0%)** |
-| `qwen2.5:0.5b` | High false alarm rate | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | 0.0% (0/20)* | 0 | 7m 37s | `101a81e` | **NOT TRUSTWORTHY (False alarms 85.0% > 15.0%)** |
-| `gemma:2b` | Misses polite extraction | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | 0.0% (0/20)* | 0 | 1h 08m 12s | `101a81e` | **NOT TRUSTWORTHY (Recall 10.0% < 80.0%)** |
+| `qwen2.5:7b` | 1 vote (local CPU) | 83.3% / 75.0% / **80.0%** | 75.0% / **80.0%** | 0.0% / **0.0%** | n/a (not measured) | 67 | 23m 17s | `101a81e` | **NOT TRUSTWORTHY (Holdout Recall 75.0% < 80.0%)** |
+| `qwen2.5:0.5b` | High false alarm rate | 46.7% / 50.0% / **48.0%** | 87.5% / **90.0%** | 87.5% / **85.0%** | n/a (not measured) | 0 | 7m 37s | `101a81e` | **NOT TRUSTWORTHY (False alarms 85.0% > 15.0%)** |
+| `gemma:2b` | Misses polite extraction | 16.7% / 25.0% / **20.0%** | 12.5% / **10.0%** | 75.0% / **80.0%** | n/a (not measured) | 0 | 1h 08m 12s | `101a81e` | **NOT TRUSTWORTHY (Recall 10.0% < 80.0%)** |
 
 *Note: Legacy local results from commit 101a81e are excluded from passing claims and are not re-evaluated in this run.*
 <!-- END GENERATED CALIBRATION TABLE -->

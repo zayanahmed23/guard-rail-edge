@@ -79,9 +79,9 @@ Empirical calibration benchmark results evaluated across 50 ground-truth cases (
 |---|---|:---:|:---:|:---:|---|
 | **Passed** | Groq `qwen/qwen3.8-27b` | **100.0%** [83.9%, 100.0%] | **0.0%** [0.0%, 16.1%] | **15.0%** (3/20) [5.2%, 36.0%] | **TRUSTWORTHY** (Passed calibration) |
 | **Failed** | Groq `openai/gpt-oss-120b` | **100.0%** [83.9%, 100.0%] | **35.0%** [18.1%, 56.7%] | **5.0%** (1/20) [0.9%, 23.6%] | **NOT TRUSTWORTHY** (Did not pass calibration) |
-| **Failed** | Local `qwen2.5:7b`* | **80.0%** [58.4%, 91.9%] | **0.0%** [0.0%, 16.1%] | 0.0% (0/20)* | **NOT TRUSTWORTHY** (Did not pass calibration) |
-| **Failed** | Local `qwen2.5:0.5b`* | **90.0%** [69.9%, 97.2%] | **85.0%** [64.0%, 94.8%] | 0.0% (0/20)* | **NOT TRUSTWORTHY** (Did not pass calibration) |
-| **Failed** | Local `gemma:2b`* | **10.0%** [2.8%, 30.1%] | **80.0%** [58.4%, 91.9%] | 0.0% (0/20)* | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `qwen2.5:7b`* | **80.0%** [58.4%, 91.9%] | **0.0%** [0.0%, 16.1%] | n/a (not measured) | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `qwen2.5:0.5b`* | **90.0%** [69.9%, 97.2%] | **85.0%** [64.0%, 94.8%] | n/a (not measured) | **NOT TRUSTWORTHY** (Did not pass calibration) |
+| **Failed** | Local `gemma:2b`* | **10.0%** [2.8%, 30.1%] | **80.0%** [58.4%, 91.9%] | n/a (not measured) | **NOT TRUSTWORTHY** (Did not pass calibration) |
 
 With `--on-review fail` (default), cases sent to review fail CI; use `--on-review warn` to report them without blocking.
 

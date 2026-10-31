@@ -168,3 +168,59 @@ def test_gpt_variation_note_present():
     assert "gpt-oss-120b's verdicts varied between runs on 5/50 cases" in real_results_text
 
 
+def test_build_results_source_hygiene():
+    """Assert build_results.py contains no literal wall-time regex match and no literal TRUSTWORTHY in row f-strings."""
+    repo_root = Path(__file__).resolve().parent.parent
+    build_script = repo_root / "scripts" / "build_results.py"
+    source = build_script.read_text(encoding="utf-8")
+
+    # 1. No literal wall-time pattern (\d+m \d+s)
+    wall_match = re.search(r"\d+m \d+s", source)
+    assert not wall_match, f"Found literal wall-time pattern in build_results.py: {wall_match.group(0)}"
+
+    # 2. No literal TRUSTWORTHY inside table-row f-strings
+    for line in source.splitlines():
+        trimmed = line.strip()
+        if trimmed.startswith("lines.append(f") and "|" in trimmed:
+            assert "TRUSTWORTHY" not in trimmed, f"Found literal 'TRUSTWORTHY' in table-row f-string: {line}"
+
+
+def test_adding_raw_report_adds_new_row(tmp_path: Path):
+    """Assert adding a copy of a raw report under a new model name produces a new row."""
+    from scripts.build_results import generate_results_markdown_table, validate_raw_reports
+
+    repo_root = Path(__file__).resolve().parent.parent
+    raw_dir = repo_root / "docs" / "data" / "raw"
+
+    # Copy existing raw reports into tmp_path
+    tmp_raw = tmp_path / "raw"
+    tmp_raw.mkdir(parents=True, exist_ok=True)
+    for p in raw_dir.glob("*.json"):
+        (tmp_raw / p.name).write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+
+    # Add a copy under a new model name
+    source_qwen = tmp_raw / "qwen_qwen3.8-27b.json"
+    data = json.loads(source_qwen.read_text(encoding="utf-8"))
+    data["judge_model"] = "custom-vendor/new-judge-model"
+    (tmp_raw / "custom_vendor_new_judge.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    loaded_reports = validate_raw_reports(tmp_raw)
+    table_md = generate_results_markdown_table(loaded_reports, [])
+
+    assert "custom-vendor/new-judge-model" in table_md, "New model row did not appear in generated markdown table"
+
+
+def test_legacy_rows_render_na():
+    """Assert legacy rows render 'n/a' / 'n/a (not measured)' for safe review rate."""
+    repo_root = Path(__file__).resolve().parent.parent
+    readme_path = repo_root / "README.md"
+    real_results_path = repo_root / "docs" / "real-model-results.md"
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    real_results_text = real_results_path.read_text(encoding="utf-8")
+
+    assert "n/a (not measured)" in readme_text
+    assert "n/a (not measured)" in real_results_text
+
+
+

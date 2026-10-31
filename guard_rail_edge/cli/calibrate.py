@@ -207,6 +207,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
 
         judge_fn = _get_hook("grade_interaction", evaluator_grade_interaction)
 
+        loop_start = time.perf_counter()
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -296,6 +297,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
                                     "debug_judge_failures": debug_failures,
                                     "judge_parse_retries": sum(r.get("retries_used", 0) for r in results),
                                     "rate_limit_waits": getattr(client, "rate_limit_waits", 0) + getattr(second_client, "rate_limit_waits", 0),
+                                    "elapsed_seconds": round(time.perf_counter() - loop_start, 2),
                                     "timestamp_utc": datetime.now(UTC).isoformat(), "results": results,
                                 }
                                 report_json.parent.mkdir(parents=True, exist_ok=True)
@@ -311,6 +313,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
                         raise typer.Exit(code=2)
                 progress.advance(task)
 
+        elapsed_seconds = round(time.perf_counter() - loop_start, 2)
         total_rate_waits = getattr(client, "rate_limit_waits", 0) + getattr(second_client, "rate_limit_waits", 0)
         metrics_overall = compute_calibration_metrics(results)
         metrics_overall["rate_limit_waits"] = metrics_overall.get("rate_limit_waits", 0) + total_rate_waits
@@ -362,6 +365,7 @@ def register_calibrate_command(app: typer.Typer) -> None:
                 "second_judge_base_url": None if checks_only else second_judge_base_url,
                 "disagreement_policy": disagreement_policy,
                 "timestamp_utc": datetime.now(UTC).isoformat(),
+                "elapsed_seconds": elapsed_seconds,
                 "verdict": verdict_str,
                 "passed": passed_val,
                 "failed_thresholds": failed_thresholds if not checks_only else [],

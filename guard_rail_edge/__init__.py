@@ -1,5 +1,5 @@
 """guard-rail-edge: Automated prompt injection and jailbreak testing CLI for CI/CD."""
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 __author__ = "Zayan Ahmed"
 __all__ = ["__author__", "__version__"]
