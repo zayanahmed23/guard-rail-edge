@@ -66,3 +66,24 @@ def test_readme_no_relative_links_or_images() -> None:
             headings = re.findall(r"^#+\s+(.+)$", content, re.MULTILINE)
             anchors = {_slugify_heading(h) for h in headings}
             assert anchor_part in anchors, f"Broken anchor #{anchor_part} in README. Available: {anchors}"
+
+
+def test_action_version_references_match_package() -> None:
+    """Assert every zayanahmed23/guard-rail-edge@vX.Y.Z in README.md and docs/*.md equals __version__."""
+    from guard_rail_edge import __version__
+
+    files_to_check = [Path("README.md")] + sorted(Path("docs").glob("*.md"))
+    pattern = re.compile(r"zayanahmed23/guard-rail-edge@v(\d+\.\d+\.\d+)")
+    total_matches = 0
+
+    for file_path in files_to_check:
+        text = file_path.read_text(encoding="utf-8")
+        matches = pattern.findall(text)
+        for ver in matches:
+            total_matches += 1
+            assert ver == __version__, (
+                f"{file_path} references action version @v{ver}, expected @v{__version__}"
+            )
+
+    assert total_matches > 0, "No zayanahmed23/guard-rail-edge@v references found in docs"
+

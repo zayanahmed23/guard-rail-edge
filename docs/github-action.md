@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Guardrail Security Gate
-        uses: zayanahmed23/guard-rail-edge@v0.5.1
+        uses: zayanahmed23/guard-rail-edge@v0.5.4
         with:
           suite: tests.json
         env:
@@ -74,7 +74,7 @@ Uses free-tier Groq API for sub-minute evaluation with our calibrated trustworth
 
 ```yaml
 - name: Evaluate System Prompt Defenses
-  uses: zayanahmed23/guard-rail-edge@v0.5.1
+  uses: zayanahmed23/guard-rail-edge@v0.5.4
   with:
     suite: prompts/customer-service/tests.json
     judge-backend: groq
@@ -96,7 +96,7 @@ Evaluate locally without sending prompts to third-party APIs:
     ollama pull qwen2.5:7b
 
 - name: Run On-Prem Guardrail Gate
-  uses: zayanahmed23/guard-rail-edge@v0.5.1
+  uses: zayanahmed23/guard-rail-edge@v0.5.4
   with:
     suite: tests.json
     judge-backend: ollama
@@ -111,7 +111,7 @@ Generate a hardened prompt `.patch` file and create an automated Pull Request wh
 ```yaml
 - name: Run Evaluation with Auto-Patch
   id: guardrail
-  uses: zayanahmed23/guard-rail-edge@v0.5.1
+  uses: zayanahmed23/guard-rail-edge@v0.5.4
   continue-on-error: true
   with:
     suite: tests.json
@@ -142,7 +142,7 @@ jobs:
         service: [support-bot, internal-hr-bot, rag-assistant]
     steps:
       - uses: actions/checkout@v4
-      - uses: zayanahmed23/guard-rail-edge@v0.5.1
+      - uses: zayanahmed23/guard-rail-edge@v0.5.4
         with:
           suite: examples/${{ matrix.service }}/tests.json
           report-path: reports/${{ matrix.service }}-report.json
