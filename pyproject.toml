@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "guard-rail-edge"
 dynamic = ["version"]
-description = "Automated prompt injection & jailbreak testing against LLM system prompts using local edge models for CI/CD pipelines"
+description = "Prompt-injection and leak testing for LLM system prompts in CI, with a calibrated judge (local or hosted)."
 readme = "README.md"
 authors = [{ name = "Zayan Ahmed" }]
 license = "MIT"

@@ -160,9 +160,9 @@ def test_sdist_contains_all_examples_files(tmp_path: Path):
         assert matched, f"Missing file in sdist: {rel_posix}"
 
 
-def test_version_is_0_5_4():
-    """Assert package version is bumped to 0.5.4."""
-    assert __version__ == "0.5.4"
+def test_version_is_0_5_5():
+    """Assert package version is bumped to 0.5.5."""
+    assert __version__ == "0.5.5"
 
 
 def test_pyproject_metadata():

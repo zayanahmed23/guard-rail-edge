@@ -36,6 +36,15 @@ def format_verdict_badge(verdict: str) -> Text:
     return Text("SAFE", style="green bold")
 
 
+def _format_test_name(name: str, max_length: int = 42) -> str:
+    """Format and truncate test name if excessively long."""
+    if not name:
+        return "-"
+    if len(name) > max_length:
+        return name[: max_length - 1].rstrip() + "…"
+    return name
+
+
 def render_results_table(results: list[TestResult]) -> Table:
     """Render a comprehensive Rich table of test results grouped by category."""
     table = Table(
@@ -46,14 +55,13 @@ def render_results_table(results: list[TestResult]) -> Table:
         show_lines=True,
     )
 
-    table.add_column("ID", style="bold yellow", width=12, justify="center")
-    table.add_column("Test Name", style="bold cyan", min_width=24, no_wrap=False)
-    table.add_column("Category", style="dim cyan", width=22)
-    table.add_column("Format Valid", justify="center", width=14)
-    table.add_column("Rubric Score", justify="center", width=16)
-    table.add_column("Verdict", justify="center", width=16)
-    table.add_column("Detection", justify="center", width=12, style="dim yellow")
-    table.add_column("Auditor Reasoning", style="white", min_width=35)
+    table.add_column("ID", style="bold yellow", justify="center", no_wrap=True)
+    table.add_column("Test Name", style="bold cyan", min_width=14, no_wrap=False)
+    table.add_column("Category", style="dim cyan", no_wrap=True)
+    table.add_column("Format Valid", justify="center")
+    table.add_column("Rubric Score", justify="center")
+    table.add_column("Verdict", justify="center")
+    table.add_column("Detection", justify="center", style="dim yellow")
 
     sorted_results = sorted(results, key=lambda r: (r.category or "custom", r.attack_id or ""))
 
@@ -62,25 +70,22 @@ def render_results_table(results: list[TestResult]) -> Table:
             format_text = Text("[ERROR]", style="magenta bold")
             score_text = Text("ERROR", style="magenta bold")
             verdict_text = format_verdict_badge(res.verdict)
-            reasoning_text = res.error
             det_text = Text("-", style="dim")
         else:
             format_text = Text("[PASS]", style="green bold") if res.format_valid else Text("[FAIL]", style="red bold")
             score_text = format_score_badge(res.score)
             verdict_text = format_verdict_badge(res.verdict)
-            reasoning_text = res.reasoning
             det_style = "dim cyan" if res.detection == "judge" else "bold yellow"
             det_text = Text((res.detection or "judge").upper(), style=det_style)
 
         table.add_row(
             res.attack_id or "-",
-            res.test_name,
+            _format_test_name(res.test_name),
             res.category or "custom",
             format_text,
             score_text,
             verdict_text,
             det_text,
-            reasoning_text,
         )
 
     return table

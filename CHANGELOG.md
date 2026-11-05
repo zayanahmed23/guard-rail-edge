@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.5] - 2026-11-05
+
+### Fixed
+- Fixed: results matrix table now displays test names across all terminal widths (including 80-110 columns) rather than collapsing to empty column.
+- Updated package description in pyproject.toml for PyPI.
+- Updated all GitHub Action version references to v0.5.5.
+
 ## [0.5.4] - 2026-11-04
 
 ### Fixed

@@ -99,7 +99,7 @@ Add `guard-rail-edge` directly to your GitHub Actions workflow using our officia
 
 ```yaml
 - name: Run Guardrail Security Gate
-  uses: zayanahmed23/guard-rail-edge@v0.5.4
+  uses: zayanahmed23/guard-rail-edge@v0.5.5
   with:
     suite: tests.json
     on-review: fail
