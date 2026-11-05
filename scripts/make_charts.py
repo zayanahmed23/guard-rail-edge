@@ -11,7 +11,7 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
 
     width = 1200
     height = 675
-    chart_top = 135
+    chart_top = 165
     chart_bottom = 560
     chart_left = 90
     chart_right = 1110
@@ -68,26 +68,33 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         f'  <text x="90" y="48" class="title">{escape("Judge Calibration: Leak Detection vs False Alarm Rate (50 cases)")}</text>'
     )
     svg_parts.append(
-        f'  <text x="90" y="74" class="subtitle">{escape("Fresh Groq evaluations vs legacy local CPU models (commit 101a81e). Small local models fail silently.")}</text>'
+        f'  <text x="90" y="74" class="subtitle">{escape("Hosted judges on Groq (raw reports in repo) vs earlier local CPU runs (commit 101a81e). Higher leak detection and lower false alarms are better.")}</text>'
     )
 
-    # Legend at top right
-    svg_parts.append(f"""  <g id="legend">
-    <rect x="670" y="36" width="16" height="12" rx="3" fill="#38bdf8"/>
-    <text x="692" y="46" class="legend-text">{escape("Leak Detection")}</text>
-
-    <rect x="805" y="36" width="16" height="12" rx="3" fill="#f87171"/>
-    <text x="827" y="46" class="legend-text">{escape("False Alarm")}</text>
-
-    <rect x="925" y="36" width="16" height="12" rx="3" fill="url(#legacy-leak-pat)" stroke="#8b949e" stroke-width="1"/>
-    <text x="947" y="46" class="legend-text">{escape("Legacy CPU (101a81e)")}</text>
-
-    <line x1="670" y1="68" x2="686" y2="68" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="692" y="72" class="legend-text" fill="#22c55e">Min Catch (≥80%)</text>
-
-    <line x1="805" y1="68" x2="821" y2="68" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="827" y="72" class="legend-text">Max FA (≤15%)</text>
-  </g>""")
+    # Legend: one row under the subtitle, laid out left-to-right so it can never
+    # overlap the title (approx. 7px per character at 12px font).
+    legend_y = 108
+    legend_items = [
+        ('<rect x="{x}" y="{y0}" width="16" height="12" rx="3" fill="#38bdf8"/>', "Leak Detection", "#c9d1d9"),
+        ('<rect x="{x}" y="{y0}" width="16" height="12" rx="3" fill="#f87171"/>', "False Alarm", "#c9d1d9"),
+        ('<rect x="{x}" y="{y0}" width="16" height="12" rx="3" fill="url(#legacy-leak-pat)" stroke="#8b949e" stroke-width="1"/>',
+         "Legacy local run (101a81e)", "#c9d1d9"),
+        ('<line x1="{x}" y1="{ym}" x2="{x2}" y2="{ym}" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,3"/>',
+         "Min leak catch 80%", "#22c55e"),
+        ('<line x1="{x}" y1="{ym}" x2="{x2}" y2="{ym}" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>',
+         "Max false alarm 15%", "#ef4444"),
+    ]
+    svg_parts.append('  <g id="legend">')
+    lx = 90
+    for shape, label, color in legend_items:
+        svg_parts.append(
+            "    " + shape.format(x=lx, x2=lx + 16, y0=legend_y - 10, ym=legend_y - 4)
+        )
+        svg_parts.append(
+            f'    <text x="{lx + 22}" y="{legend_y}" class="legend-text" fill="{color}">{escape(label)}</text>'
+        )
+        lx += 22 + int(len(label) * 7) + 28
+    svg_parts.append("  </g>")
 
     # Gridlines and y-axis labels
     for pct in [0, 20, 40, 60, 80, 100]:
@@ -133,10 +140,10 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
             )
             # Badge
             svg_parts.append(
-                f'  <rect x="{x_center - 32:.1f}" y="{chart_top - 28:.1f}" width="64" height="17" rx="8" fill="#238636"/>'
+                f'  <rect x="{x_center - 32:.1f}" y="{chart_top - 38:.1f}" width="64" height="17" rx="8" fill="#238636"/>'
             )
             svg_parts.append(
-                f'  <text x="{x_center:.1f}" y="{chart_top - 16:.1f}" class="badge-text" fill="#ffffff">{escape("PASSED")}</text>'
+                f'  <text x="{x_center:.1f}" y="{chart_top - 26:.1f}" class="badge-text" fill="#ffffff">{escape("PASSED")}</text>'
             )
 
         # Bar 1: Leak Detection Rate
@@ -164,6 +171,10 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
             f'  <line x1="{x_mid1 - 5:.1f}" y1="{y_ci_l1:.1f}" x2="{x_mid1 + 5:.1f}" y2="{y_ci_l1:.1f}" stroke="#0369a1" stroke-width="2"/>'
         )
 
+        svg_parts.append(
+            f'  <text x="{x_mid1:.1f}" y="{y_ci_u1 - 6:.1f}" class="bar-val" fill="#7dd3fc">{escape(f"{leak_val:.0%}")}</text>'
+        )
+
         # Bar 2: False Alarm Rate
         fa_val = float(m["false_alarm_rate"])
         y_fa = y_pos(fa_val)
@@ -187,6 +198,10 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         )
         svg_parts.append(
             f'  <line x1="{x_mid2 - 5:.1f}" y1="{y_ci_l2:.1f}" x2="{x_mid2 + 5:.1f}" y2="{y_ci_l2:.1f}" stroke="#b91c1c" stroke-width="2"/>'
+        )
+
+        svg_parts.append(
+            f'  <text x="{x_mid2:.1f}" y="{y_ci_u2 - 6:.1f}" class="bar-val" fill="#fca5a5">{escape(f"{fa_val:.0%}")}</text>'
         )
 
         # X-axis label (model name & backend)
