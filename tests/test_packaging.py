@@ -99,9 +99,70 @@ def test_wheel_contains_only_package_files(tmp_path: Path):
         )
 
 
-def test_version_is_0_5_3():
-    """Assert package version is bumped to 0.5.3."""
-    assert __version__ == "0.5.3"
+@pytest.mark.slow
+def test_sdist_contains_all_examples_files(tmp_path: Path):
+    """Build an sdist and assert that every file under examples/ is packaged."""
+    import importlib.util
+    import shutil
+    import tarfile
+
+    if not importlib.util.find_spec("build"):
+        pytest.skip("build module not installed in test environment")
+
+    repo_root = Path(__file__).parent.parent
+    src_dir = tmp_path / "src"
+    out_dir = tmp_path / "dist"
+
+    def ignore_patterns(path: str, names: list[str]) -> set[str]:
+        ignored = set()
+        for name in names:
+            if name in (
+                ".git",
+                "build",
+                "dist",
+                ".venv",
+                "venv",
+                "env",
+                "__pycache__",
+                ".pytest_cache",
+                ".mypy_cache",
+                ".ruff_cache",
+            ):
+                ignored.add(name)
+            elif name.endswith(".egg-info"):
+                ignored.add(name)
+        return ignored
+
+    shutil.copytree(repo_root, src_dir, ignore=ignore_patterns)
+
+    res = subprocess.run(
+        [sys.executable, "-m", "build", "--sdist", "--outdir", str(out_dir)],
+        cwd=str(src_dir),
+        capture_output=True,
+        text=True,
+    )
+    if res.returncode != 0:
+        pytest.fail(f"Failed to build sdist:\nStdout: {res.stdout}\nStderr: {res.stderr}")
+
+    sdist_files = list(out_dir.glob("*.tar.gz"))
+    assert len(sdist_files) == 1, f"Expected 1 sdist tarball, found: {sdist_files}"
+
+    with tarfile.open(sdist_files[0], "r:gz") as tar:
+        member_names = [m.name for m in tar.getmembers() if m.isfile()]
+
+    examples_dir = repo_root / "examples"
+    example_files = [p for p in examples_dir.rglob("*") if p.is_file()]
+    assert len(example_files) > 0, "No files found under examples/"
+
+    for p in example_files:
+        rel_posix = p.relative_to(repo_root).as_posix()
+        matched = any(m.endswith(rel_posix) for m in member_names)
+        assert matched, f"Missing file in sdist: {rel_posix}"
+
+
+def test_version_is_0_5_4():
+    """Assert package version is bumped to 0.5.4."""
+    assert __version__ == "0.5.4"
 
 
 def test_pyproject_metadata():

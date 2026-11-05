@@ -33,7 +33,11 @@ inputs:
   version:
     description: "Package version to install (or 'local' to use checkout)"
     required: false
-    default: '0.5.1'
+    default: '0.5.4'
+  redact-responses:
+    description: "Redact raw model responses in report artifact to prevent leaking prompt secrets in CI (default: 'true')"
+    required: false
+    default: 'true'
   report-path:
     description: 'Filepath for output JSON evaluation report'
     required: false
@@ -85,6 +89,9 @@ runs:
         fi
         if [ -n "${{ inputs.judge-model }}" ]; then
           ARGS+=("--judge-model" "${{ inputs.judge-model }}")
+        fi
+        if [ "${{ inputs.redact-responses }}" = "true" ]; then
+          ARGS+=("--redact-responses")
         fi
         if [ -n "${{ inputs.extra-args }}" ]; then
           read -ra EXTRA <<< "${{ inputs.extra-args }}"

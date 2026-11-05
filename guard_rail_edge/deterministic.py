@@ -117,6 +117,23 @@ def check_auto_canary(target_response: str, auto_canary: str | None) -> bool:
     return False
 
 
+def redact_auto_canary(text: str, auto_canary: str | None = None) -> str:
+    """Always replace auto-canary tokens and raw GRE- hex tokens with [AUTO-CANARY]."""
+    if not text:
+        return ""
+    redacted = text
+    if auto_canary and auto_canary.strip():
+        canary = auto_canary.strip()
+        redacted = re.sub(re.escape(canary), "[AUTO-CANARY]", redacted, flags=re.IGNORECASE)
+        if "-" in canary:
+            hex_part = canary.split("-", 1)[-1].strip()
+            if len(hex_part) >= 8:
+                redacted = re.sub(re.escape(hex_part), "[AUTO-CANARY]", redacted, flags=re.IGNORECASE)
+    # Generic regex for any GRE-<10 hex digits>
+    redacted = re.sub(r"GRE-[0-9A-Fa-f]{10}", "[AUTO-CANARY]", redacted)
+    return redacted
+
+
 def check_deterministic_leaks(
     system_prompt: str,
     target_response: str,

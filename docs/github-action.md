@@ -43,7 +43,8 @@ jobs:
 | `judge-model` | Evaluator judge model name (e.g. `qwen/qwen3.8-27b`) | No | `""` (defaults to tool config) |
 | `on-review` | Action policy for `NEEDS REVIEW` verdicts: `fail` (exit 3) or `warn` (exit 0) | No | `fail` |
 | `python-version` | Python runtime version to initialize | No | `3.12` |
-| `version` | Package version of `guard-rail-edge` to install (`0.5.1` or `local`) | No | `0.5.1` |
+| `version` | Package version of `guard-rail-edge` to install (`0.5.4` or `local`) | No | `0.5.4` |
+| `redact-responses` | Redact raw responses in report artifact to avoid leaking prompt secrets in CI | No | `true` |
 | `report-path` | Destination filepath for machine-readable JSON evaluation report | No | `.guard-rail-edge-report.json` |
 | `artifact-name` | Name of the report artifact to upload | No | `guard-rail-edge-report` |
 | `extra-args` | Additional command-line flags passed directly to `guard-rail-edge run` | No | `""` |

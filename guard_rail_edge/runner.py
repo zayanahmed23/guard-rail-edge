@@ -17,6 +17,7 @@ from rich.progress import (
 )
 from rich.syntax import Syntax
 
+from guard_rail_edge.deterministic import redact_auto_canary
 from guard_rail_edge.evaluator import (
     EvaluatorConnectionError,
     check_format,
@@ -304,9 +305,10 @@ def evaluate_suite(
                     )
                 )
             else:
+                stored_resp = redact_auto_canary(worst_response, auto_canary)
                 test_results.append(
                     TestResult(
-                        test_name=test.name, adversarial_input=test.input, target_response=worst_response,
+                        test_name=test.name, adversarial_input=test.input, target_response=stored_resp,
                         score=worst_score, reasoning=worst_reasoning, format_valid=worst_format_valid,
                         run_scores=test_run_scores, attack_id=test.id, category=test.category,
                         severity=test.severity, detection=worst_detection, needs_review=worst_needs_review,

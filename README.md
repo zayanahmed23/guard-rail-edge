@@ -5,12 +5,12 @@
 [![PyPI version](https://img.shields.io/pypi/v/guard-rail-edge?color=blue&style=flat-square)](https://pypi.org/project/guard-rail-edge/)
 [![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg?style=flat-square)](https://www.python.org/downloads/)
 [![CI & Tests](https://img.shields.io/github/actions/workflow/status/zayanahmed23/guard-rail-edge/ci.yml?branch=main&label=CI%20%26%20Tests&style=flat-square)](https://github.com/zayanahmed23/guard-rail-edge/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-[![Calibrated Judge](https://img.shields.io/badge/Judge-Empirically%20Calibrated-success.svg?style=flat-square)](docs/real-model-results.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/zayanahmed23/guard-rail-edge/blob/main/LICENSE)
+[![Calibrated Judge](https://img.shields.io/badge/Judge-Empirically%20Calibrated-success.svg?style=flat-square)](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/real-model-results.md)
 
 ---
 
-![guard-rail-edge Terminal Demo](assets/demo.svg)
+![guard-rail-edge Terminal Demo](https://raw.githubusercontent.com/zayanahmed23/guard-rail-edge/main/assets/demo.svg)
 
 ---
 
@@ -60,17 +60,17 @@ guard-rail-edge run
 - **Format Breakouts**: Breaking structured JSON/schema contracts or smuggling executable payloads.
 - **Roleplay & Social Engineering**: Authority emulation (e.g. fake compliance auditor) and hypothetical framing.
 
-Explore realistic runnable suites in [`examples/`](examples/):
-- [`examples/support-bot/`](examples/support-bot/): Customer support bot with confidential discount codes and canaries.
-- [`examples/rag-assistant/`](examples/rag-assistant/): Internal Q&A assistant tested against indirect document injection.
-- [`examples/internal-hr-bot/`](examples/internal-hr-bot/): Slack HR bot tested against compensation and executive leak probes.
-- [`examples/json-api-agent/`](examples/json-api-agent/): Structured API agent enforcing strict JSON contracts.
+Explore realistic runnable suites in [`examples/`](https://github.com/zayanahmed23/guard-rail-edge/tree/main/examples):
+- [`examples/support-bot/`](https://github.com/zayanahmed23/guard-rail-edge/tree/main/examples/support-bot): Customer support bot with confidential discount codes and canaries.
+- [`examples/rag-assistant/`](https://github.com/zayanahmed23/guard-rail-edge/tree/main/examples/rag-assistant): Internal Q&A assistant tested against indirect document injection.
+- [`examples/internal-hr-bot/`](https://github.com/zayanahmed23/guard-rail-edge/tree/main/examples/internal-hr-bot): Slack HR bot tested against compensation and executive leak probes.
+- [`examples/json-api-agent/`](https://github.com/zayanahmed23/guard-rail-edge/tree/main/examples/json-api-agent): Structured API agent enforcing strict JSON contracts.
 
 ---
 
 ## Calibrated Judge Accuracy
 
-![Judge Calibration Chart](assets/judge-calibration.svg)
+![Judge Calibration Chart](https://raw.githubusercontent.com/zayanahmed23/guard-rail-edge/main/assets/judge-calibration.svg)
 
 Empirical calibration benchmark results evaluated across 50 ground-truth cases (30 dev, 20 holdout):
 
@@ -85,11 +85,11 @@ Empirical calibration benchmark results evaluated across 50 ground-truth cases (
 
 With `--on-review fail` (default), cases sent to review fail CI; use `--on-review warn` to report them without blocking.
 
-*\*Evaluated in commit 101a81e on local CPU. Legacy results; see docs/real-model-results.md for raw details.*
+*\*Evaluated in commit 101a81e on local CPU. Legacy results; see [docs/real-model-results.md](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/real-model-results.md) for raw details.*
 *Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*
 <!-- END GENERATED CALIBRATION TABLE -->
 
-*Full evaluation methodology, confusion matrices, and audit logs: [docs/real-model-results.md](docs/real-model-results.md).*
+*Full evaluation methodology, confusion matrices, and audit logs: [docs/real-model-results.md](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/real-model-results.md).*
 
 ---
 
@@ -99,13 +99,15 @@ Add `guard-rail-edge` directly to your GitHub Actions workflow using our officia
 
 ```yaml
 - name: Run Guardrail Security Gate
-  uses: zayanahmed23/guard-rail-edge@v0.5.1
+  uses: zayanahmed23/guard-rail-edge@v0.5.4
   with:
     suite: tests.json
     on-review: fail
   env:
     GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 ```
+
+Raw model responses are redacted in CI report artifacts by default (`redact-responses: true`) to prevent leaking prompt secrets.
 
 *(Or run via manual CLI script: `pip install guard-rail-edge && guard-rail-edge doctor && guard-rail-edge run --on-review fail --report-json security-audit.json`.)*
 
@@ -131,16 +133,16 @@ Add `guard-rail-edge` directly to your GitHub Actions workflow using our officia
 
 ## Documentation
 
-- 🚀 [GitHub Action](docs/github-action.md) — Official composite action, step summaries, and PR automation.
-- 📖 [CLI Reference](docs/cli-reference.md) — Complete options, flags, and command reference.
-- ⚙️ [Configuration Guide](docs/configuration.md) — TOML files, pyproject.toml integration, and presets.
-- 🎯 [Attack Library](docs/attack-library.md) — Attack packs, categories, and test schema.
-- 🔬 [Judge Calibration](docs/calibration.md) — Methodology, 50-case benchmark, and Wilson score formulation.
-- 🔌 [Backends & Caching](docs/backends.md) — Local Ollama, Groq, OpenAI endpoints, and cache setup.
-- 📊 [Real Model Results](docs/real-model-results.md) — Empirical benchmark tables and proofs.
+- 🚀 [GitHub Action](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/github-action.md) — Official composite action, step summaries, and PR automation.
+- 📖 [CLI Reference](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/cli-reference.md) — Complete options, flags, and command reference.
+- ⚙️ [Configuration Guide](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/configuration.md) — TOML files, pyproject.toml integration, and presets.
+- 🎯 [Attack Library](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/attack-library.md) — Attack packs, categories, and test schema.
+- 🔬 [Judge Calibration](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/calibration.md) — Methodology, 50-case benchmark, and Wilson score formulation.
+- 🔌 [Backends & Caching](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/backends.md) — Local Ollama, Groq, OpenAI endpoints, and cache setup.
+- 📊 [Real Model Results](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/real-model-results.md) — Empirical benchmark tables and proofs.
 
 ---
 
 ## License
 
-Distributed under the [MIT License](LICENSE).
+Distributed under the [MIT License](https://github.com/zayanahmed23/guard-rail-edge/blob/main/LICENSE).

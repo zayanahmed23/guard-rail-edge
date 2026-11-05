@@ -370,7 +370,7 @@ def generate_readme_markdown_table(judge_data: list[dict]) -> str:
     lines.append("")
     lines.append("With `--on-review fail` (default), cases sent to review fail CI; use `--on-review warn` to report them without blocking.")
     lines.append("")
-    lines.append("*\\*Evaluated in commit 101a81e on local CPU. Legacy results; see docs/real-model-results.md for raw details.*")
+    lines.append("*\\*Evaluated in commit 101a81e on local CPU. Legacy results; see [docs/real-model-results.md](https://github.com/zayanahmed23/guard-rail-edge/blob/main/docs/real-model-results.md) for raw details.*")
     lines.append("*Calibration uses 50 cases (20 holdout, 8 holdout leaks); treat results as indicative, not a guarantee. Re-run `calibrate` on your own judge and, ideally, your own labelled cases.*")
     return "\n".join(lines)
 

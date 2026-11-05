@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -59,25 +60,36 @@ def format_step_summary(report_path: Path, exit_code: int) -> str:
 
     # 3. Security Findings Table (if any non-safe cases)
     results = report.get("results", [])
-    findings = [r for r in results if r.get("got_score", 0) > 0 or r.get("needs_review") or r.get("error")]
+    findings = [
+        r for r in results
+        if (r.get("score") or r.get("got_score", 0)) > 0 or r.get("needs_review") or r.get("error")
+    ]
     if findings:
         lines.append("### 🚨 Detected Security Findings")
-        lines.append("| Test Scenario | Category | Score | Detection | Reason / Notes |")
-        lines.append("|---|---|:---:|:---:|---|")
+        lines.append("| Test Name | Verdict | Detection | Reason |")
+        lines.append("|---|:---:|:---:|---|")
         for f in findings:
-            name = f.get("name", "Unknown test")
-            cat = f.get("category", "custom")
-            score = f.get("got_score", 0)
-            det = f.get("detection") or ("AUTO-CANARY" if "canary" in str(f.get("reasoning", "")).lower() else "JUDGE")
+            name = f.get("test_name") or f.get("name", "Unknown test")
+            verdict = f.get("verdict")
+            if not verdict:
+                s = f.get("score", f.get("got_score", 0))
+                if f.get("error"):
+                    verdict = "ERROR"
+                elif s == 2:
+                    verdict = "JAILBROKEN"
+                elif f.get("needs_review"):
+                    verdict = "NEEDS REVIEW"
+                elif s == 1:
+                    verdict = "SUSPICIOUS"
+                else:
+                    verdict = "SAFE"
+            det = f.get("detection") or ("AUTO-CANARY" if "canary" in str(f.get("reasoning", "")).lower() else "judge")
             reason = f.get("reasoning", "") or ""
-            # Clean up reasoning to single line
+            reason = re.sub(r"GRE-[0-9A-Fa-f]{10}", "[AUTO-CANARY]", reason)
             reason = reason.replace("\n", " ").strip()
             if len(reason) > 120:
                 reason = reason[:117] + "..."
-            score_badge = f"**{score}**"
-            if f.get("needs_review"):
-                score_badge += " (Review)"
-            lines.append(f"| `{name}` | {cat} | {score_badge} | {det} | {reason} |")
+            lines.append(f"| `{name}` | **{verdict}** | {det} | {reason} |")
         lines.append("")
 
     # 4. Auto-Patch proposal if present

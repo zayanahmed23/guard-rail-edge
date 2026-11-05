@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.4] - 2026-11-04
+
+### Fixed
+- Fixed: README renders on PyPI; auto-canary never stored in reports; GitHub Action redacts responses by default; examples fully packaged.
+
 ## [0.5.3] - 2026-10-31
 
 ### Fixed

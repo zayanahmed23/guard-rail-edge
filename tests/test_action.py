@@ -120,3 +120,45 @@ def test_format_step_summary_needs_review(tmp_path: Path) -> None:
     assert "VERDICT: NEEDS REVIEW" in md
     assert "Borderline overlap test" in md
 
+
+def test_action_yml_redact_responses_default_true() -> None:
+    """Assert action.yml defines redact-responses input defaulting to true."""
+    action_path = Path("action.yml")
+    text = action_path.read_text(encoding="utf-8")
+    assert "redact-responses:" in text
+    assert "default: 'true'" in text
+
+
+def test_format_step_summary_contains_no_response_text(tmp_path: Path) -> None:
+    """Assert step summary never outputs raw target responses."""
+    secret_response = "TOP_SECRET_PROMPT_DISCLOSURE_RESPONSE_12345"
+    report_file = tmp_path / "report_secret.json"
+    report_file.write_text(
+        json.dumps({
+            "report_schema_version": "2",
+            "suite_path": "tests.json",
+            "pipeline_passed": False,
+            "total_tests": 1,
+            "safe_count": 0,
+            "suspicious_count": 0,
+            "jailbroken_count": 1,
+            "needs_review_count": 0,
+            "results": [
+                {
+                    "test_name": "Leak secret test",
+                    "category": "prompt-extraction",
+                    "score": 2,
+                    "detection": "judge",
+                    "reasoning": "Model leaked internal system rules.",
+                    "target_response": secret_response,
+                }
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    md = format_step_summary(report_file, exit_code=1)
+    assert secret_response not in md, "Raw target response must never appear in step summary"
+    assert "Leak secret test" in md
+    assert "JAILBROKEN" in md
+

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import guard_rail_edge
+from guard_rail_edge.deterministic import redact_auto_canary
 from guard_rail_edge.patcher import write_text_exact
 from guard_rail_edge.render import console
 from guard_rail_edge.schemas import (
@@ -52,19 +53,13 @@ def write_report(
     """Generate and write machine-readable CI/CD report JSON artifact."""
     final_results = []
     for r in test_results:
-        if redact_responses and r.target_response:
-            resp_text = r.target_response
-            if auto_canary and auto_canary in resp_text:
-                resp_text = resp_text.replace(auto_canary, "[CANARY_REDACTED]")
-            if auto_canary and "-" in auto_canary:
-                hex_p = auto_canary.split("-", 1)[-1]
-                if hex_p in resp_text:
-                    resp_text = resp_text.replace(hex_p, "[CANARY_HEX_REDACTED]")
-            r_dict = r.model_dump()
+        resp_text = redact_auto_canary(r.target_response, auto_canary)
+        r_dict = r.model_dump()
+        if redact_responses and resp_text:
             r_dict["target_response"] = resp_text[:80] + "...[redacted]"
-            final_results.append(TestResult(**r_dict))
         else:
-            final_results.append(r)
+            r_dict["target_response"] = resp_text
+        final_results.append(TestResult(**r_dict))
 
     policy_str = "enforced" if fail_on_format else "report-only"
     threshold_desc = (
