@@ -45,10 +45,10 @@
     <text x="947" y="46" class="legend-text">Legacy CPU (101a81e)</text>
 
     <line x1="670" y1="68" x2="686" y2="68" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="692" y="72" class="legend-text" fill="#22c55e">Min Catch (>=80%)</text>
+    <text x="692" y="72" class="legend-text" fill="#22c55e">Min Catch (≥80%)</text>
 
     <line x1="805" y1="68" x2="821" y2="68" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="827" y="72" class="legend-text">Max FA (<=15%)</text>
+    <text x="827" y="72" class="legend-text">Max FA (≤15%)</text>
   </g>
   <line x1="90" y1="560.0" x2="1110" y2="560.0" stroke="#21262d" stroke-width="1"/>
   <text x="78" y="564.0" class="axis-label">0%</text>

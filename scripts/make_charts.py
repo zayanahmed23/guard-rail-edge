@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 
 def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
@@ -64,28 +65,28 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
 
     # Titles
     svg_parts.append(
-        '  <text x="90" y="48" class="title">Judge Calibration: Leak Detection vs False Alarm Rate (50 cases)</text>'
+        f'  <text x="90" y="48" class="title">{escape("Judge Calibration: Leak Detection vs False Alarm Rate (50 cases)")}</text>'
     )
     svg_parts.append(
-        '  <text x="90" y="74" class="subtitle">Fresh Groq evaluations vs legacy local CPU models (commit 101a81e). Small local models fail silently.</text>'
+        f'  <text x="90" y="74" class="subtitle">{escape("Fresh Groq evaluations vs legacy local CPU models (commit 101a81e). Small local models fail silently.")}</text>'
     )
 
     # Legend at top right
-    svg_parts.append("""  <g id="legend">
+    svg_parts.append(f"""  <g id="legend">
     <rect x="670" y="36" width="16" height="12" rx="3" fill="#38bdf8"/>
-    <text x="692" y="46" class="legend-text">Leak Detection</text>
+    <text x="692" y="46" class="legend-text">{escape("Leak Detection")}</text>
 
     <rect x="805" y="36" width="16" height="12" rx="3" fill="#f87171"/>
-    <text x="827" y="46" class="legend-text">False Alarm</text>
+    <text x="827" y="46" class="legend-text">{escape("False Alarm")}</text>
 
     <rect x="925" y="36" width="16" height="12" rx="3" fill="url(#legacy-leak-pat)" stroke="#8b949e" stroke-width="1"/>
-    <text x="947" y="46" class="legend-text">Legacy CPU (101a81e)</text>
+    <text x="947" y="46" class="legend-text">{escape("Legacy CPU (101a81e)")}</text>
 
     <line x1="670" y1="68" x2="686" y2="68" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="692" y="72" class="legend-text" fill="#22c55e">Min Catch (>=80%)</text>
+    <text x="692" y="72" class="legend-text" fill="#22c55e">Min Catch (≥80%)</text>
 
     <line x1="805" y1="68" x2="821" y2="68" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
-    <text x="827" y="72" class="legend-text">Max FA (<=15%)</text>
+    <text x="827" y="72" class="legend-text">Max FA (≤15%)</text>
   </g>""")
 
     # Gridlines and y-axis labels
@@ -94,7 +95,7 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         svg_parts.append(
             f'  <line x1="{chart_left}" y1="{y:.1f}" x2="{chart_right}" y2="{y:.1f}" stroke="#21262d" stroke-width="1"/>'
         )
-        svg_parts.append(f'  <text x="{chart_left - 12}" y="{y + 4:.1f}" class="axis-label">{pct}%</text>')
+        svg_parts.append(f'  <text x="{chart_left - 12}" y="{y + 4:.1f}" class="axis-label">{escape(f"{pct}%")}</text>')
 
     # Threshold Lines
     y_80 = y_pos(0.80)
@@ -103,14 +104,14 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         f'  <line x1="{chart_left}" y1="{y_80:.1f}" x2="{chart_right}" y2="{y_80:.1f}" stroke="#22c55e" stroke-width="2" stroke-dasharray="6,4"/>'
     )
     svg_parts.append(
-        f'  <text x="{chart_right + 8}" y="{y_80 + 4:.1f}" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#22c55e">80% Target</text>'
+        f'  <text x="{chart_right + 8}" y="{y_80 + 4:.1f}" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#22c55e">{escape("80% Target")}</text>'
     )
 
     svg_parts.append(
         f'  <line x1="{chart_left}" y1="{y_15:.1f}" x2="{chart_right}" y2="{y_15:.1f}" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,4"/>'
     )
     svg_parts.append(
-        f'  <text x="{chart_right + 8}" y="{y_15 + 4:.1f}" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#ef4444">15% Max FA</text>'
+        f'  <text x="{chart_right + 8}" y="{y_15 + 4:.1f}" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#ef4444">{escape("15% Max FA")}</text>'
     )
 
     # Bars and model groups
@@ -135,7 +136,7 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
                 f'  <rect x="{x_center - 32:.1f}" y="{chart_top - 28:.1f}" width="64" height="17" rx="8" fill="#238636"/>'
             )
             svg_parts.append(
-                f'  <text x="{x_center:.1f}" y="{chart_top - 16:.1f}" class="badge-text" fill="#ffffff">PASSED</text>'
+                f'  <text x="{x_center:.1f}" y="{chart_top - 16:.1f}" class="badge-text" fill="#ffffff">{escape("PASSED")}</text>'
             )
 
         # Bar 1: Leak Detection Rate
@@ -193,17 +194,18 @@ def generate_judge_calibration_svg(data_path: Path, output_path: Path) -> None:
         if "/" in short_name:
             short_name = short_name.split("/", 1)[1]
         svg_parts.append(
-            f'  <text x="{x_center:.1f}" y="{chart_bottom + 22:.1f}" class="model-name">{short_name}</text>'
+            f'  <text x="{x_center:.1f}" y="{chart_bottom + 22:.1f}" class="model-name">{escape(short_name)}</text>'
         )
         backend_suffix = ", legacy" if is_legacy else ""
         backend_label = f"({m['backend']}{backend_suffix})"
         svg_parts.append(
-            f'  <text x="{x_center:.1f}" y="{chart_bottom + 38:.1f}" class="model-backend">{backend_label}</text>'
+            f'  <text x="{x_center:.1f}" y="{chart_bottom + 38:.1f}" class="model-backend">{escape(backend_label)}</text>'
         )
 
     # Footer
+    footer_text = escape("Measured with `guard-rail-edge calibrate`. 95% Wilson score confidence interval shown.")
     svg_parts.append(
-        '  <text x="90" y="642" class="footer">Measured with `guard-rail-edge calibrate`. 95% Wilson score confidence interval shown.</text>'
+        f'  <text x="90" y="642" class="footer">{footer_text}</text>'
     )
     svg_parts.append("</svg>\n")
 

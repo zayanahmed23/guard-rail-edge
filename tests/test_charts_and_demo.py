@@ -1,7 +1,10 @@
 """Tests verifying judge calibration chart generation and terminal demo recording."""
 
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
+
+import pytest
 
 from scripts.generate_demo import generate_demo_svg
 from scripts.make_charts import generate_judge_calibration_svg
@@ -21,6 +24,25 @@ def test_make_charts_generation(tmp_path: Path) -> None:
     assert "</svg>" in content
     assert "Judge Calibration" in content
     assert out_svg.stat().st_size > 5000
+
+    # Ensure generated SVG parses as valid XML
+    tree = ET.parse(out_svg)
+    assert tree.getroot().tag.endswith("svg")
+
+
+def test_assets_svg_files_are_valid_xml() -> None:
+    """Assert every SVG file in assets/*.svg is valid XML and parses without errors."""
+    assets_dir = Path("assets")
+    svg_files = list(assets_dir.glob("*.svg"))
+    assert len(svg_files) > 0, "No SVG files found in assets directory"
+
+    for svg_file in svg_files:
+        try:
+            tree = ET.parse(svg_file)
+            root = tree.getroot()
+            assert root.tag.endswith("svg"), f"Root element in {svg_file} is not <svg>"
+        except ET.ParseError as e:
+            pytest.fail(f"Invalid XML in {svg_file}: {e}")
 
 
 def test_judge_calibration_data_matches_markdown() -> None:
